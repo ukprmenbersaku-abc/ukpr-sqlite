@@ -1,0 +1,5 @@
+{
+  "name": "Smart SQLite Studio",
+  "description": "A browser-based SQLite viewer and editor powered by Gemini for natural language SQL generation.",
+  "requestFramePermissions": []
+}
