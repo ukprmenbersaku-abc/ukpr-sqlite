@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { TableInfo, ViewMode } from '../types';
-import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut } from 'lucide-react';
+import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download } from 'lucide-react';
 
 interface SidebarProps {
   tables: TableInfo[];
@@ -16,6 +16,7 @@ interface SidebarProps {
   onFileOpen: (file: File) => void;
   onCreateNew: () => void;
   onCloseFile: () => void;
+  onDownloadFile: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -31,7 +32,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isFileLoaded,
   onFileOpen,
   onCreateNew,
-  onCloseFile
+  onCloseFile,
+  onDownloadFile
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,13 +53,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Header */}
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between h-14 min-h-[3.5rem]">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <Database className="text-blue-500 shrink-0" size={24} />
-            <span className="font-bold text-slate-100 truncate text-lg">SQLite Studio</span>
+        {/* Header with Gradient Icon */}
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between h-16 min-h-[4rem]">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
+              <Database className="text-white drop-shadow-md" size={18} />
+            </div>
+            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 truncate text-lg tracking-tight">
+              SQLite Studio
+            </span>
           </div>
-          <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white">
+          <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -94,17 +100,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               {isFileLoaded && (
-                <button
-                  onClick={() => {
-                     if(window.confirm('ファイルを閉じますか？保存されていない変更は失われます。')) {
-                       onCloseFile();
-                     }
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 rounded-md transition-colors text-left"
-                >
-                  <LogOut size={18} />
-                  <span>ファイルを閉じる</span>
-                </button>
+                <>
+                  <button
+                    onClick={onDownloadFile}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
+                  >
+                    <Download size={18} className="text-purple-400" />
+                    <span>ファイルを保存</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onCloseFile}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 rounded-md transition-colors text-left"
+                  >
+                    <LogOut size={18} />
+                    <span>ファイルを閉じる</span>
+                  </button>
+                </>
               )}
             </div>
           </div>

@@ -33,6 +33,18 @@ export const createNewDatabase = async (): Promise<void> => {
   db = new SQL.Database();
 };
 
+export const exportDatabase = (): Uint8Array | null => {
+  if (!db) return null;
+  return db.export();
+};
+
+export const closeDatabase = (): void => {
+  if (db) {
+    db.close();
+    db = null;
+  }
+};
+
 export const executeQuery = (sql: string): QueryResult | null => {
   if (!db) throw new Error("Database not initialized");
   try {

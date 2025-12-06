@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Upload, Database, FilePlus } from 'lucide-react';
+import { Upload, FilePlus } from 'lucide-react';
 
 interface FileUploadProps {
   onFileLoaded: (file: File) => void;
@@ -19,9 +19,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
   return (
     <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 text-center animate-in fade-in duration-500">
       <div className="max-w-2xl w-full flex flex-col items-center">
-        <div className="mb-8 flex justify-center text-slate-700">
-          <Database strokeWidth={1} size={120} className="opacity-20" />
-        </div>
+        {/* Removed the large background icon as requested */}
         
         <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">ファイルが開かれていません</h2>
         <p className="text-slate-400 mb-10 max-w-md mx-auto text-sm md:text-base leading-relaxed">

@@ -7,6 +7,8 @@ import { AiAssistant } from './components/AiAssistant';
 import { 
   loadDatabase, 
   createNewDatabase, 
+  closeDatabase,
+  exportDatabase,
   getTables, 
   getTableData, 
   executeQuery, 
@@ -49,7 +51,7 @@ function App() {
   const onCreateNew = async () => {
     try {
       await createNewDatabase();
-      setFileName('new_database.db');
+      setFileName('new_database.sqlite');
       refreshTables();
       setIsFileLoaded(true);
       setCurrentView('SQL');
@@ -60,15 +62,44 @@ function App() {
     }
   };
 
+  const onDownloadFile = () => {
+    try {
+      const data = exportDatabase();
+      if (!data) return;
+      const blob = new Blob([data], { type: 'application/x-sqlite3' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || 'database.sqlite';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert('ファイルの保存に失敗しました');
+    }
+  };
+
   const onCloseFile = () => {
-    setIsFileLoaded(false);
-    setFileName(null);
-    setTables([]);
-    setQueryResult(null);
-    setActiveTable(null);
-    setEditorSql('');
-    setError(null);
-    setIsSidebarOpen(false);
+    if (window.confirm('ファイルを閉じますか？\n保存されていない変更は失われます。')) {
+      try {
+        closeDatabase(); // Explicitly close db
+      } catch (e) {
+        console.warn("Database close error:", e);
+      }
+      
+      // Reset all states to initial values
+      setIsFileLoaded(false);
+      setFileName(null);
+      setTables([]);
+      setQueryResult(null);
+      setActiveTable(null);
+      setEditorSql('');
+      setError(null);
+      setIsSidebarOpen(false);
+      setCurrentView('BROWSE'); // Reset view mode
+    }
   };
 
   const refreshTables = () => {
@@ -175,7 +206,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-900 text-slate-100 overflow-hidden">
+    <div className="flex h-dvh bg-slate-900 text-slate-100 overflow-hidden">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -199,6 +230,7 @@ function App() {
         onFileOpen={onFileLoaded}
         onCreateNew={onCreateNew}
         onCloseFile={onCloseFile}
+        onDownloadFile={onDownloadFile}
       />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
