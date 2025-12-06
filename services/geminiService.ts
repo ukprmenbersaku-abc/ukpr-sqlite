@@ -1,7 +1,8 @@
 import { GoogleGenAI } from "@google/genai";
 
-export const generateSqlFromPrompt = async (schema: string, userPrompt: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+export const generateSqlFromPrompt = async (apiKey: string, schema: string, userPrompt: string): Promise<string> => {
+  // Use the API key provided by the user, not process.env which causes crashes in browser builds
+  const ai = new GoogleGenAI({ apiKey: apiKey });
   
   const systemPrompt = `
     You are an expert SQLite developer.
