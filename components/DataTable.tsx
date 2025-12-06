@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QueryResult } from '../types';
+import { QueryResult } from '../types.ts';
 import { Edit2, Trash2, Check, X, Plus, Save } from 'lucide-react';
 
 interface DataTableProps {

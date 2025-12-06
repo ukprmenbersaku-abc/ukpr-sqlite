@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { TableInfo, ViewMode } from '../types';
+import { TableInfo, ViewMode } from '../types.ts';
 import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download } from 'lucide-react';
 
 interface SidebarProps {

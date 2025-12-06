@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { FileUpload } from './components/FileUpload';
-import { Sidebar } from './components/Sidebar';
-import { DataTable } from './components/DataTable';
-import { SqlEditor } from './components/SqlEditor';
-import { AiAssistant } from './components/AiAssistant';
+import { FileUpload } from './components/FileUpload.tsx';
+import { Sidebar } from './components/Sidebar.tsx';
+import { DataTable } from './components/DataTable.tsx';
+import { SqlEditor } from './components/SqlEditor.tsx';
+import { AiAssistant } from './components/AiAssistant.tsx';
 import { 
   loadDatabase, 
   createNewDatabase, 
@@ -16,8 +16,8 @@ import {
   deleteRow,
   insertRow,
   dropTable
-} from './services/sqliteService';
-import { TableInfo, QueryResult, ViewMode } from './types';
+} from './services/sqliteService.ts';
+import { TableInfo, QueryResult, ViewMode } from './types.ts';
 import { Menu } from 'lucide-react';
 
 function App() {

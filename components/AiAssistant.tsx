@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, Loader2, Key, Settings } from 'lucide-react';
-import { generateSqlFromPrompt } from '../services/geminiService';
-import { getDatabaseSchema } from '../services/sqliteService';
+import { generateSqlFromPrompt } from '../services/geminiService.ts';
+import { getDatabaseSchema } from '../services/sqliteService.ts';
 
 interface AiAssistantProps {
   onSqlGenerated: (sql: string) => void;

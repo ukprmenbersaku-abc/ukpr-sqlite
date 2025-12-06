@@ -1,4 +1,4 @@
-import { QueryResult, TableInfo, SqlJsDatabase } from '../types';
+import { QueryResult, TableInfo, SqlJsDatabase } from '../types.ts';
 
 let db: SqlJsDatabase | null = null;
 let SQL: any = null;
