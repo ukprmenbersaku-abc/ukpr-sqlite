@@ -1,14 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 
-const getAiClient = () => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key is missing");
-  }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
-};
-
 export const generateSqlFromPrompt = async (schema: string, userPrompt: string): Promise<string> => {
-  const ai = getAiClient();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const systemPrompt = `
     You are an expert SQLite developer.
@@ -41,8 +34,9 @@ export const generateSqlFromPrompt = async (schema: string, userPrompt: string):
     const text = response.text || '';
     // Clean up any potential markdown formatting if the model slips up
     return text.replace(/```sql/g, '').replace(/```/g, '').trim();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error("Failed to generate SQL. Please check your API key and try again.");
+    // Pass through specific API errors if possible
+    throw new Error(error.message || "Failed to generate SQL. Please check the system configuration.");
   }
 };

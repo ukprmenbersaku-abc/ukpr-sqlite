@@ -1,15 +1,21 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { TableInfo, ViewMode } from '../types';
-import { Database, Search, Terminal, Sparkles, Table as TableIcon, X } from 'lucide-react';
+import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut } from 'lucide-react';
 
 interface SidebarProps {
   tables: TableInfo[];
   currentView: ViewMode;
   onViewChange: (view: ViewMode) => void;
   onSelectTable: (tableName: string) => void;
-  fileName: string;
+  onDeleteTable: (tableName: string) => void;
+  fileName: string | null;
   isOpen: boolean;
   onClose: () => void;
+  activeTable: string | null;
+  isFileLoaded: boolean;
+  onFileOpen: (file: File) => void;
+  onCreateNew: () => void;
+  onCloseFile: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -17,83 +23,177 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentView, 
   onViewChange, 
   onSelectTable,
+  onDeleteTable,
   fileName,
   isOpen,
-  onClose
+  onClose,
+  activeTable,
+  isFileLoaded,
+  onFileOpen,
+  onCreateNew,
+  onCloseFile
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      onFileOpen(file);
+      // Reset input so same file can be selected again if needed
+      event.target.value = '';
+    }
+  };
+
   return (
     <>
-      {/* Mobile Overlay is handled in App.tsx to cover the whole screen, 
-          but Sidebar itself handles its positioning */}
       <div 
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 flex flex-col h-full transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between">
+        {/* Header */}
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between h-14 min-h-[3.5rem]">
           <div className="flex items-center gap-2 overflow-hidden">
-            <Database className="text-blue-500 shrink-0" size={20} />
-            <span className="font-semibold text-slate-100 truncate text-sm" title={fileName}>{fileName}</span>
+            <Database className="text-blue-500 shrink-0" size={24} />
+            <span className="font-bold text-slate-100 truncate text-lg">SQLite Studio</span>
           </div>
           <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white">
             <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-4">
-          <div className="px-4 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            メニュー
-          </div>
-          <nav className="space-y-1 px-2 mb-6">
-            <button
-              onClick={() => onViewChange('SQL')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                currentView === 'SQL' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <Terminal size={18} />
-              SQLエディタ
-            </button>
-            <button
-              onClick={() => onViewChange('AI')}
-              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                currentView === 'AI' 
-                  ? 'bg-purple-600 text-white' 
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <Sparkles size={18} />
-              AIアシスタント
-            </button>
-          </nav>
-
-          <div className="px-4 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            テーブル一覧 ({tables.length})
-          </div>
-          <nav className="space-y-1 px-2 pb-20 md:pb-0">
-            {tables.map((table) => (
+        <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6">
+          
+          {/* File Operations */}
+          <div className="px-2">
+            <div className="mb-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              ファイル操作
+            </div>
+            <div className="space-y-1">
               <button
-                key={table.name}
-                onClick={() => {
-                  onSelectTable(table.name);
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                   false 
-                    ? 'bg-slate-800 text-white' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                }`}
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
               >
-                <TableIcon size={16} />
-                <span className="truncate">{table.name}</span>
+                <FolderOpen size={18} className="text-blue-400" />
+                <span>ファイルを開く</span>
               </button>
-            ))}
-            {tables.length === 0 && (
-              <div className="px-3 text-sm text-slate-600 italic">テーブルがありません</div>
-            )}
-          </nav>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                accept=".sqlite,.db,.sqlite3" 
+                className="hidden" 
+              />
+
+              <button
+                onClick={onCreateNew}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
+              >
+                <FilePlus size={18} className="text-green-400" />
+                <span>新規作成</span>
+              </button>
+
+              {isFileLoaded && (
+                <button
+                  onClick={() => {
+                     if(window.confirm('ファイルを閉じますか？保存されていない変更は失われます。')) {
+                       onCloseFile();
+                     }
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 rounded-md transition-colors text-left"
+                >
+                  <LogOut size={18} />
+                  <span>ファイルを閉じる</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Main Navigation (Only visible when file is loaded) */}
+          {isFileLoaded && (
+            <>
+              <div className="px-2">
+                <div className="mb-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  モード
+                </div>
+                <nav className="space-y-1">
+                  <button
+                    onClick={() => onViewChange('SQL')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      currentView === 'SQL' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <Terminal size={18} />
+                    SQLエディタ
+                  </button>
+                  <button
+                    onClick={() => onViewChange('AI')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      currentView === 'AI' 
+                        ? 'bg-purple-600 text-white' 
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <Sparkles size={18} />
+                    AIアシスタント
+                  </button>
+                </nav>
+              </div>
+
+              <div className="px-2 pb-20 md:pb-0">
+                <div className="mb-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+                  <span>テーブル ({tables.length})</span>
+                </div>
+                <nav className="space-y-1">
+                  {tables.map((table) => (
+                    <div key={table.name} className="flex items-center gap-1 group">
+                      <button
+                        onClick={() => {
+                          onSelectTable(table.name);
+                        }}
+                        className={`flex-1 flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors text-left ${
+                          currentView === 'BROWSE' && activeTable === table.name
+                            ? 'bg-slate-800 text-white' 
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <TableIcon size={16} />
+                        <span className="truncate">{table.name}</span>
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if(window.confirm(`テーブル "${table.name}" を削除してもよろしいですか？この操作は取り消せません。`)) {
+                            onDeleteTable(table.name);
+                          }
+                        }}
+                        className="p-2 text-slate-600 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-all"
+                        title="テーブルを削除"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  {tables.length === 0 && (
+                    <div className="px-3 text-sm text-slate-600 italic">テーブルがありません</div>
+                  )}
+                </nav>
+              </div>
+            </>
+          )}
         </div>
+        
+        {/* Footer info */}
+        {isFileLoaded && fileName && (
+          <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">現在のファイル</div>
+            <div className="text-sm text-slate-300 font-medium truncate" title={fileName}>
+              {fileName}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

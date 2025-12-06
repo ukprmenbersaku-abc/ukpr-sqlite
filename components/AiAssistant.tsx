@@ -24,6 +24,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
       const sql = await generateSqlFromPrompt(schema, prompt);
       onSqlGenerated(sql);
     } catch (err: any) {
+      console.error(err);
       setError(err.message || 'エラーが発生しました');
     } finally {
       setLoading(false);
@@ -31,7 +32,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
   };
 
   return (
-    <div className="p-4 md:p-6 h-full flex flex-col items-center justify-center bg-slate-900 overflow-y-auto">
+    <div className="p-4 md:p-6 h-full flex flex-col items-center justify-center bg-slate-900 overflow-y-auto relative">
       <div className="max-w-2xl w-full py-4">
         <div className="text-center mb-6 md:mb-8">
           <div className="inline-flex items-center justify-center p-3 bg-purple-900/30 rounded-full mb-4 ring-1 ring-purple-500/50">
@@ -62,13 +63,13 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
         </form>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-300 text-sm text-center">
-            {error}
+          <div className="mb-4 p-4 bg-red-900/20 border border-red-900/50 rounded-lg text-red-300 text-sm text-center flex flex-col items-center gap-2">
+            <span>{error}</span>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-800">
+          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
             <h3 className="font-semibold text-slate-300 mb-2">こんな質問ができます</h3>
             <ul className="list-disc list-inside text-slate-400 space-y-1">
               <li>登録日が昨日のユーザー一覧を表示</li>
@@ -76,7 +77,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
               <li>在庫が10個以下のアイテムを探して</li>
             </ul>
           </div>
-          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-800">
+          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
             <h3 className="font-semibold text-slate-300 mb-2">Tips</h3>
             <p className="text-slate-400 leading-relaxed">
               複雑な集計や結合も任せてください。<br/>

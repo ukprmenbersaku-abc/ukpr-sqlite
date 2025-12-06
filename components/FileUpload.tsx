@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Upload, Database } from 'lucide-react';
+import { Upload, Database, FilePlus } from 'lucide-react';
 
 interface FileUploadProps {
   onFileLoaded: (file: File) => void;
@@ -17,25 +17,31 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 text-center bg-slate-900">
-      <div className="bg-slate-800 p-6 md:p-10 rounded-2xl shadow-2xl border border-slate-700 max-w-md w-full">
-        <div className="mb-6 flex justify-center text-blue-400">
-          <Database size={48} className="md:w-16 md:h-16" />
+    <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 text-center animate-in fade-in duration-500">
+      <div className="max-w-2xl w-full flex flex-col items-center">
+        <div className="mb-8 flex justify-center text-slate-700">
+          <Database strokeWidth={1} size={120} className="opacity-20" />
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2 text-white">Smart SQLite Studio</h1>
-        <p className="text-slate-400 mb-6 md:mb-8 text-sm md:text-base">
-          SQLiteファイルをドラッグ＆ドロップ、または選択してください。
-          <br />サーバーには送信されません。
+        
+        <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">ファイルが開かれていません</h2>
+        <p className="text-slate-400 mb-10 max-w-md mx-auto text-sm md:text-base leading-relaxed">
+          SQLiteファイルを選択して中身を確認・編集するか、<br/>
+          新しいデータベースを作成して作業を開始しましょう。
         </p>
 
-        <div 
-          onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-slate-600 hover:border-blue-500 hover:bg-slate-700/50 transition-all rounded-xl p-6 md:p-8 cursor-pointer group"
-        >
-          <div className="flex flex-col items-center gap-3">
-            <Upload className="text-slate-500 group-hover:text-blue-400 transition-colors" size={32} />
-            <span className="text-sm font-medium text-slate-300">ファイルを選択 (.sqlite, .db)</span>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="group flex flex-col items-center justify-center gap-4 p-8 rounded-2xl bg-slate-800 border-2 border-slate-700 hover:border-blue-500 hover:bg-slate-800/80 transition-all duration-300"
+          >
+            <div className="p-4 rounded-full bg-slate-900 group-hover:bg-blue-900/30 text-blue-400 transition-colors">
+              <Upload size={32} />
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-white mb-1">ファイルを開く</div>
+              <div className="text-xs text-slate-500">.sqlite, .db, .sqlite3</div>
+            </div>
+          </button>
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -43,14 +49,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
             accept=".sqlite,.db,.sqlite3" 
             className="hidden" 
           />
-        </div>
 
-        <div className="mt-6 pt-6 border-t border-slate-700">
           <button 
             onClick={onCreateNew}
-            className="text-sm text-blue-400 hover:text-blue-300 underline underline-offset-4"
+            className="group flex flex-col items-center justify-center gap-4 p-8 rounded-2xl bg-slate-800 border-2 border-slate-700 hover:border-green-500 hover:bg-slate-800/80 transition-all duration-300"
           >
-            または空のデータベースを作成
+             <div className="p-4 rounded-full bg-slate-900 group-hover:bg-green-900/30 text-green-400 transition-colors">
+              <FilePlus size={32} />
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-white mb-1">新規作成</div>
+              <div className="text-xs text-slate-500">空のデータベースを作成</div>
+            </div>
           </button>
         </div>
       </div>
