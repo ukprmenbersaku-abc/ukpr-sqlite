@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { TableInfo, ViewMode } from '../types.ts';
 import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download } from 'lucide-react';
@@ -178,11 +179,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          if(window.confirm(`テーブル "${table.name}" を削除してもよろしいですか？この操作は取り消せません。`)) {
-                            onDeleteTable(table.name);
-                          }
+                          onDeleteTable(table.name);
                         }}
-                        className="p-2 text-slate-600 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-all"
+                        className="p-2 text-slate-600 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
                         title="テーブルを削除"
                       >
                         <Trash2 size={14} />

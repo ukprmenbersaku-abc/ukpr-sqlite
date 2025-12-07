@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { FileUpload } from './components/FileUpload.tsx';
 import { Sidebar } from './components/Sidebar.tsx';
 import { DataTable } from './components/DataTable.tsx';
 import { SqlEditor } from './components/SqlEditor.tsx';
 import { AiAssistant } from './components/AiAssistant.tsx';
+import { ConfirmModal } from './components/ConfirmModal.tsx';
 import { 
   loadDatabase, 
   createNewDatabase, 
@@ -30,6 +32,25 @@ function App() {
   const [editorSql, setEditorSql] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Modal State
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDestructive?: boolean;
+    confirmText?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const closeModal = () => {
+    setModalConfig(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Handle file loading
   const onFileLoaded = async (file: File) => {
@@ -66,7 +87,6 @@ function App() {
     try {
       const data = exportDatabase();
       if (!data) return;
-      // Fix: Cast data to any to resolve TS mismatch between Uint8Array<ArrayBufferLike> and BlobPart
       const blob = new Blob([data as any], { type: 'application/x-sqlite3' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -82,36 +102,52 @@ function App() {
     }
   };
 
-  const onCloseFile = () => {
-    if (window.confirm('ファイルを閉じますか？\n保存されていない変更は失われます。')) {
-      try {
-        closeDatabase(); // Explicitly close db
-      } catch (e) {
-        console.warn("Database close error:", e);
-      }
-      
-      // Reset all states to initial values
-      setIsFileLoaded(false);
-      setFileName(null);
-      setTables([]);
-      setQueryResult(null);
-      setActiveTable(null);
-      setEditorSql('');
-      setError(null);
-      setIsSidebarOpen(false);
-      setCurrentView('BROWSE'); // Reset view mode
+  const onCloseFileRequest = () => {
+    setModalConfig({
+      isOpen: true,
+      title: 'ファイルを閉じますか？',
+      message: '保存されていない変更は失われる可能性があります。\n現在の作業を終了してホーム画面に戻りますか？',
+      isDestructive: true,
+      confirmText: '閉じる',
+      onConfirm: performCloseFile
+    });
+  };
+
+  const performCloseFile = () => {
+    try {
+      closeDatabase();
+    } catch (e) {
+      console.warn("Database close error:", e);
     }
+    
+    // Reset all states to initial values completely
+    setIsFileLoaded(false);
+    setFileName(null);
+    setTables([]);
+    setQueryResult(null);
+    setActiveTable(null);
+    setEditorSql('');
+    setError(null);
+    setIsSidebarOpen(false);
+    setCurrentView('BROWSE');
+    closeModal();
   };
 
   const refreshTables = () => {
     const t = getTables();
     setTables(t);
     // If we have active table, refresh its data, otherwise maybe select first?
-    if (activeTable && t.find(tab => tab.name === activeTable)) {
-       handleSelectTable(activeTable);
-    } else if (t.length > 0 && !activeTable) {
+    if (activeTable) {
+      // Check if active table still exists
+      if (t.find(tab => tab.name === activeTable)) {
+         handleSelectTable(activeTable);
+      } else {
+         setActiveTable(null);
+         setQueryResult(null);
+      }
+    } else if (t.length > 0) {
       handleSelectTable(t[0].name);
-    } else if (t.length === 0) {
+    } else {
       setQueryResult(null);
       setActiveTable(null);
     }
@@ -131,16 +167,30 @@ function App() {
     }
   };
 
-  const handleDeleteTable = (tableName: string) => {
+  const handleDeleteTableRequest = (tableName: string) => {
+    setModalConfig({
+      isOpen: true,
+      title: 'テーブルの削除',
+      message: `テーブル "${tableName}" を削除してもよろしいですか？\nこの操作は取り消せません。`,
+      isDestructive: true,
+      confirmText: '削除する',
+      onConfirm: () => performDeleteTable(tableName)
+    });
+  };
+
+  const performDeleteTable = (tableName: string) => {
     try {
       dropTable(tableName);
+      // Explicitly reset active table if we deleted it
       if (activeTable === tableName) {
         setActiveTable(null);
         setQueryResult(null);
       }
       refreshTables();
+      closeModal();
     } catch (e: any) {
-      setError(e.message);
+      setError(`テーブル削除エラー: ${e.message}`);
+      closeModal();
     }
   };
 
@@ -148,7 +198,6 @@ function App() {
     if (!activeTable) return;
     try {
       updateCellValue(activeTable, rowId, column, value);
-      // Refresh data (lightweight refresh)
       const data = getTableData(activeTable);
       setQueryResult(data);
     } catch (e: any) {
@@ -208,6 +257,16 @@ function App() {
 
   return (
     <div className="flex h-dvh bg-slate-900 text-slate-100 overflow-hidden">
+      <ConfirmModal 
+        isOpen={modalConfig.isOpen}
+        title={modalConfig.title}
+        message={modalConfig.message}
+        onConfirm={modalConfig.onConfirm}
+        onCancel={closeModal}
+        isDestructive={modalConfig.isDestructive}
+        confirmText={modalConfig.confirmText}
+      />
+
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -216,13 +275,13 @@ function App() {
         />
       )}
 
-      {/* Sidebar is always rendered now */}
+      {/* Sidebar is always rendered */}
       <Sidebar 
         tables={tables}
         currentView={currentView}
         onViewChange={handleViewChange}
         onSelectTable={handleSelectTable}
-        onDeleteTable={handleDeleteTable}
+        onDeleteTable={handleDeleteTableRequest}
         fileName={fileName}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -230,7 +289,7 @@ function App() {
         isFileLoaded={isFileLoaded}
         onFileOpen={onFileLoaded}
         onCreateNew={onCreateNew}
-        onCloseFile={onCloseFile}
+        onCloseFile={onCloseFileRequest}
         onDownloadFile={onDownloadFile}
       />
 
@@ -261,7 +320,7 @@ function App() {
         <div className="flex-1 flex flex-col overflow-hidden relative">
           
           {!isFileLoaded ? (
-            // No File Loaded State
+            // No File Loaded State (Home Screen)
             <FileUpload onFileLoaded={onFileLoaded} onCreateNew={onCreateNew} />
           ) : (
             // File Loaded State

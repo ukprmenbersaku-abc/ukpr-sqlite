@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="16" fill="url(#grad)" />
+  <g transform="translate(16, 14)">
+    <!-- Top Ellipse -->
+    <ellipse cx="16" cy="6" rx="14" ry="5" fill="none" stroke="white" stroke-width="3.5" />
+    <!-- Bottom Body -->
+    <path d="M2 6 v 24 a 14 5 0 0 0 28 0 v -24" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Middle Line -->
+    <path d="M2 18 a 14 5 0 0 0 28 0" fill="none" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="50%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#ec4899"/>
+    </linearGradient>
+  </defs>
+</svg>
