@@ -19,9 +19,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
   return (
     <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 text-center animate-in fade-in duration-500">
       <div className="max-w-2xl w-full flex flex-col items-center">
-        {/* Removed the large background icon as requested */}
         
-        <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">ファイルが開かれていません</h2>
+        <h2 className="text-xl md:text-2xl font-bold mb-4 text-white">ファイルが開かれていません</h2>
         <p className="text-slate-400 mb-10 max-w-md mx-auto text-sm md:text-base leading-relaxed">
           SQLiteファイルを選択して中身を確認・編集するか、<br/>
           新しいデータベースを作成して作業を開始しましょう。

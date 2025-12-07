@@ -13,9 +13,6 @@ export default {
           850: '#1a2236',
           900: '#111828',
         }
-      },
-      fontFamily: {
-        sans: ['"Zen Maru Gothic"', 'sans-serif'],
       }
     },
   },
