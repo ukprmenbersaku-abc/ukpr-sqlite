@@ -1,0 +1,18 @@
+/* 
+  プレビュー環境（CDN）では @tailwind ディレクティブは機能しません。
+  ビルド時（npm run build）には tailwind.config.js が参照されます。
+*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Zen Maru Gothic", sans-serif;
+  color: #292524; /* stone-800 */
+  background-color: #fafaf9; /* stone-50 */
+}

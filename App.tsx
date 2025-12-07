@@ -66,7 +66,8 @@ function App() {
     try {
       const data = exportDatabase();
       if (!data) return;
-      const blob = new Blob([data], { type: 'application/x-sqlite3' });
+      // Fix: Cast data to any to resolve TS mismatch between Uint8Array<ArrayBufferLike> and BlobPart
+      const blob = new Blob([data as any], { type: 'application/x-sqlite3' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
