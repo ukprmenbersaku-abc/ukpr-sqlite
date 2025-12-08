@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar.tsx';
 import { DataTable } from './components/DataTable.tsx';
 import { SqlEditor } from './components/SqlEditor.tsx';
 import { AiAssistant } from './components/AiAssistant.tsx';
+import { QueryExamples } from './components/QueryExamples.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
 import { 
   loadDatabase, 
@@ -254,6 +255,11 @@ function App() {
     setCurrentView('SQL');
     handleExecuteSql(sql);
   };
+  
+  const handleSelectExampleSql = (sql: string) => {
+    setEditorSql(sql);
+    setCurrentView('SQL');
+  };
 
   return (
     <div className="flex h-dvh bg-slate-900 text-slate-100 overflow-hidden">
@@ -306,7 +312,8 @@ function App() {
             <h1 className="text-base md:text-lg font-semibold text-slate-200 truncate">
               {!isFileLoaded ? 'ホーム' : 
                 currentView === 'BROWSE' && activeTable ? `${activeTable}` : 
-                currentView === 'SQL' ? 'SQL Editor' : 'AI Assistant'}
+                currentView === 'SQL' ? 'SQL Editor' : 
+                currentView === 'AI' ? 'AI Assistant' : 'SQL Query 例'}
             </h1>
           </div>
           {isFileLoaded && currentView === 'BROWSE' && (
@@ -361,6 +368,14 @@ function App() {
               {/* AI MODE */}
               {currentView === 'AI' && (
                 <AiAssistant onSqlGenerated={handleAiGeneratedSql} />
+              )}
+              
+              {/* EXAMPLES MODE */}
+              {currentView === 'EXAMPLES' && (
+                <QueryExamples 
+                  onSelectSql={handleSelectExampleSql} 
+                  activeTable={activeTable} 
+                />
               )}
             </>
           )}

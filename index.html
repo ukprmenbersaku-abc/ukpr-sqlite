@@ -8,6 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS for Preview (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -22,6 +23,10 @@
                 850: '#1a2236',
                 900: '#111828',
               }
+            },
+            fontFamily: {
+              sans: ['Inter', '"Noto Sans JP"', 'sans-serif'],
+              mono: ['Consolas', '"Courier New"', 'monospace'],
             }
           },
         },
@@ -44,7 +49,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-900 text-slate-100 h-dvh w-screen overflow-hidden notranslate">
+  <body class="bg-slate-900 text-slate-100 h-dvh w-screen overflow-hidden notranslate font-sans">
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

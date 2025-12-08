@@ -13,6 +13,10 @@ export default {
           850: '#1a2236',
           900: '#111828',
         }
+      },
+      fontFamily: {
+        sans: ['Inter', '"Noto Sans JP"', 'sans-serif'],
+        mono: ['Consolas', '"Courier New"', 'monospace'],
       }
     },
   },

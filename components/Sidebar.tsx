@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { TableInfo, ViewMode } from '../types.ts';
-import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download } from 'lucide-react';
+import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download, BookOpen } from 'lucide-react';
 
 interface SidebarProps {
   tables: TableInfo[];
@@ -152,6 +152,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <Sparkles size={18} />
                     AIアシスタント
+                  </button>
+                  <button
+                    onClick={() => onViewChange('EXAMPLES')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      currentView === 'EXAMPLES' 
+                        ? 'bg-cyan-600 text-white' 
+                        : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    <BookOpen size={18} />
+                    SQL Query 例
                   </button>
                 </nav>
               </div>

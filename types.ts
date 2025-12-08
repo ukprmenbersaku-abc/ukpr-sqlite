@@ -8,7 +8,7 @@ export interface TableInfo {
   schema: string;
 }
 
-export type ViewMode = 'BROWSE' | 'SQL' | 'AI';
+export type ViewMode = 'BROWSE' | 'SQL' | 'AI' | 'EXAMPLES';
 
 export interface SqlJsStatement {
   run(values?: any[] | object): void;
