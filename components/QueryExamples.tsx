@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BookOpen, ChevronDown, Terminal } from 'lucide-react';
+import { BookOpen, ChevronDown, Terminal, Sparkles } from 'lucide-react';
 
 interface QueryExamplesProps {
   onSelectSql: (sql: string) => void;
@@ -33,6 +33,7 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
   const examples = [
     {
       category: "基本操作",
+      icon: <Terminal size={18} />,
       items: [
         {
           title: "全件取得 (制限付き)",
@@ -58,6 +59,7 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
     },
     {
       category: "集計・並び替え",
+      icon: <Sparkles size={18} />,
       items: [
         {
           title: "行数をカウント",
@@ -78,6 +80,7 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
     },
     {
       category: "データ操作 (DML)",
+      icon: <Terminal size={18} />,
       items: [
         {
           title: "データの挿入",
@@ -102,22 +105,24 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
     <div className="p-4 md:p-6 h-full bg-slate-900 overflow-y-auto">
       <div className="max-w-4xl mx-auto pb-10">
         <div className="flex items-center gap-3 mb-8 md:mb-10">
-          <div className="p-3 bg-blue-900/30 rounded-full ring-1 ring-blue-500/50">
-            <BookOpen className="text-blue-400" size={24} />
+          <div className="p-3 bg-cyan-900/30 rounded-full ring-1 ring-cyan-500/50">
+            <BookOpen className="text-cyan-400" size={24} />
           </div>
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-white">SQL Query 例</h2>
             <p className="text-slate-400 text-sm mt-1">
-              よく使われるSQLパターン集です。クリックして使い方を確認し、そのままエディタで試せます。
+              よく使われるSQLパターン集です。クリックしてSQLを生成できます。
             </p>
           </div>
         </div>
 
-        <div className="space-y-10">
+        <div className="space-y-8">
           {examples.map((category, catIdx) => (
-            <div key={catIdx}>
-              <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4 border-b border-slate-800 pb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-slate-600"></span>
+            <div key={catIdx} className="animate-in fade-in slide-in-from-bottom-4 duration-500" style={{ animationDelay: `${catIdx * 100}ms` }}>
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2 px-1">
+                <span className="p-1.5 bg-slate-800 rounded-md text-slate-300 border border-slate-700">
+                  {category.icon}
+                </span>
                 {category.category}
               </h3>
               
@@ -128,22 +133,26 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
                   return (
                     <div 
                       key={itemIdx} 
-                      className={`border rounded-xl transition-all duration-300 overflow-hidden ${
+                      className={`group border rounded-xl transition-all duration-300 overflow-hidden ${
                         isOpen 
-                          ? 'border-blue-500/30 bg-slate-800 shadow-lg shadow-black/20' 
+                          ? 'border-cyan-500/50 bg-slate-800 shadow-lg shadow-black/20' 
                           : 'border-slate-800 bg-slate-800/40 hover:bg-slate-800 hover:border-slate-700'
                       }`}
                     >
                       <button 
                         onClick={() => toggleItem(catIdx, itemIdx)} 
-                        className="w-full flex items-center justify-between p-4 md:p-5 text-left group"
+                        className="w-full flex items-center justify-between p-4 md:p-5 text-left focus:outline-none"
                       >
                         <div className="flex items-start gap-3">
-                          <span className={`font-bold text-base md:text-lg transition-colors leading-snug ${isOpen ? 'text-white' : 'text-slate-300 group-hover:text-blue-200'}`}>
+                          <span className={`font-bold text-base md:text-lg transition-colors leading-snug ${
+                            isOpen ? 'text-cyan-400' : 'text-slate-200 group-hover:text-cyan-200'
+                          }`}>
                             {item.title}
                           </span>
                         </div>
-                        <div className={`text-slate-500 transition-transform duration-300 flex-shrink-0 ${isOpen ? 'rotate-180 text-blue-400' : ''}`}>
+                        <div className={`text-slate-500 transition-transform duration-300 flex-shrink-0 ${
+                          isOpen ? 'rotate-180 text-cyan-400' : 'group-hover:text-slate-300'
+                        }`}>
                           <ChevronDown size={20} />
                         </div>
                       </button>
@@ -153,25 +162,27 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
                           isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
                         }`}
                       >
-                        <div className="px-4 pb-5 md:px-5 md:pb-6">
-                          <div className="pl-4 md:pl-5 ml-1 border-l-2 border-slate-700/50 space-y-4">
-                            <p className="text-slate-400 text-sm leading-relaxed">
+                        <div className="px-4 pb-5 md:px-5 md:pb-6 pt-0">
+                          <div className="pl-4 md:pl-0 space-y-4 pt-2 border-t border-slate-700/50 mt-2">
+                            <p className="text-slate-300 text-sm leading-relaxed">
                               {item.desc}
                             </p>
                             
-                            <div className="bg-slate-950 rounded-lg border border-slate-800 relative group/code">
-                              <div className="p-3 md:p-4 font-mono text-sm text-green-300 overflow-x-auto whitespace-pre">
+                            <div className="bg-slate-950 rounded-lg border border-slate-800 relative group/code mt-3">
+                              <div className="p-4 font-mono text-sm text-green-400 overflow-x-auto whitespace-pre">
                                 {item.sql}
                               </div>
                             </div>
 
-                            <button
-                              onClick={() => onSelectSql(item.sql)}
-                              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-all hover:shadow-lg hover:shadow-blue-900/20 active:scale-95 w-full sm:w-auto justify-center sm:justify-start"
-                            >
-                              <Terminal size={16} />
-                              エディタで試す
-                            </button>
+                            <div className="flex justify-end pt-1">
+                              <button
+                                onClick={() => onSelectSql(item.sql)}
+                                className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold transition-all hover:shadow-lg hover:shadow-cyan-900/20 active:scale-95 w-full sm:w-auto justify-center"
+                              >
+                                <Terminal size={16} />
+                                エディタで試す
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
