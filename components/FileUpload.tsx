@@ -60,6 +60,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
             </div>
           </button>
         </div>
+
+        <div className="mt-12 p-6 rounded-2xl bg-slate-800/50 border border-slate-700/50 max-w-lg w-full">
+          <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center justify-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+            SQLite Studio Web について
+          </h3>
+          <p className="text-xs md:text-sm text-slate-400 leading-relaxed">
+            このツールは、インストール不要でブラウザ上で完結するSQLiteデータベースの閲覧・編集ツールです。
+            読み込んだデータはサーバーにアップロードされることなく、すべてお使いのブラウザ内で安全に処理されます。
+            Gemini AIを活用した自然言語によるSQL生成機能も搭載しています。
+          </p>
+        </div>
       </div>
     </div>
   );

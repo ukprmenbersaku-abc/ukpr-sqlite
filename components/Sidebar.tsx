@@ -56,11 +56,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Header with Gradient Icon */}
         <div className="p-4 border-b border-slate-800 flex items-center justify-between h-16 min-h-[4rem]">
-          <div className="flex items-center gap-3 overflow-hidden">
+          <div 
+            className={`flex items-center gap-3 overflow-hidden ${isFileLoaded ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+            onClick={() => {
+              if (isFileLoaded) {
+                onCloseFile();
+              }
+            }}
+          >
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20 shrink-0">
               <Database className="text-white drop-shadow-md" size={18} />
             </div>
-            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 truncate text-lg tracking-tight">
+            <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 truncate text-lg tracking-tight select-none">
               SQLite Studio
             </span>
           </div>

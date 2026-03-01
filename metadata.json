@@ -1,5 +1,5 @@
 {
-  "name": "SQLite Studio",
-  "description": "A browser-based SQLite viewer and editor powered by Gemini for natural language SQL generation.",
+  "name": "SQLite Studio Web",
+  "description": "インストール不要でブラウザ上で完結する、SQLiteデータベースの閲覧・編集ツールです。Gemini AIによる自然言語からのSQL生成にも対応しています。",
   "requestFramePermissions": []
 }
