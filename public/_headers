@@ -1,0 +1,11 @@
+/sitemap.xml
+  Content-Type: application/xml
+  X-Content-Type-Options: nosniff
+
+/favicon.svg
+  Content-Type: image/svg+xml
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
