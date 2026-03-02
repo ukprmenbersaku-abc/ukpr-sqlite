@@ -1,5 +1,5 @@
 {
-  "name": "SQLite Studio Web",
-  "description": "インストール不要でブラウザ上で完結する、SQLiteデータベースの閲覧・編集ツールです。Gemini AIによる自然言語からのSQL生成にも対応しています。",
+  "name": "Web SQLite Studio",
+  "description": "Web SQLite Studioとはブラウザ上で完結する、インストール不要のSQLiteデータベースの閲覧・編集ツールです。直感的な操作やGemini APIによる自然言語からのSQL生成にも対応しています。",
   "requestFramePermissions": []
 }
