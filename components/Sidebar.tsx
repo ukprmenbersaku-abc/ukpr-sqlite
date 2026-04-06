@@ -68,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Database className="text-white drop-shadow-md" size={18} />
             </div>
             <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 truncate text-lg tracking-tight select-none">
-              SQLite Studio
+              SQLite on Web
             </span>
           </div>
           <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white transition-colors">

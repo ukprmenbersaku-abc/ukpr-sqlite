@@ -22,7 +22,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
       <div className="max-w-2xl w-full flex flex-col items-center py-10">
         
         <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white tracking-tight">
-          Web SQLite Studio
+          SQLite on Web
         </h2>
         <p className="text-slate-400 mb-10 max-w-md mx-auto text-sm md:text-base leading-relaxed">
           SQLiteファイルを選択して中身を確認・編集するか、<br/>
@@ -71,7 +71,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
           >
             <span className="text-sm font-medium text-slate-300 flex items-center gap-2">
               <Globe size={16} className="text-blue-400" />
-              Web SQLite Studio について
+              SQLite on Web について
             </span>
             {isExpanded ? <ChevronUp size={18} className="text-slate-500" /> : <ChevronDown size={18} className="text-slate-500" />}
           </button>
