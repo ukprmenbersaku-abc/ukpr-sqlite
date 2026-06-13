@@ -40,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const directoryInputRef = useRef<HTMLInputElement>(null);
+  const multiFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -51,6 +52,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleDirectoryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      onFolderOpen(files);
+      event.target.value = '';
+    }
+  };
+
+  const handleMultiFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length > 0) {
       onFolderOpen(files);
@@ -113,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => directoryInputRef.current?.click()}
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
-                title="フォルダ内の複数SQLiteを一括で読み込んで結合できるようにします"
+                title="フォルダ内の複数SQLiteを一括で読み込んで結合できるようにします。うまくフォルダが開けない場合はすぐ下の複数ファイル選択や、ホーム上のドラッグ＆ドロップをお試しください"
               >
                 <Folders size={18} className="text-amber-400" />
                 <span>フォルダを開く</span>
@@ -124,6 +133,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onChange={handleDirectoryChange} 
                 className="hidden" 
                 {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
+              />
+
+              {/* Sidebar Multi-File load Fallback */}
+              <button
+                onClick={() => multiFileInputRef.current?.click()}
+                className="w-full flex items-center gap-2 px-3 py-1 text-xs font-medium text-amber-500 hover:bg-slate-800 hover:text-amber-400 rounded-md transition-colors text-left pl-10 -mt-1"
+                title="フォルダ選択ダイアログがサポートされていないブラウザ用（Ctrl/Cmdキーを押しながら複数選択可能）"
+              >
+                <span>※代わりに複数ファイルを選択</span>
+              </button>
+              <input 
+                type="file" 
+                ref={multiFileInputRef} 
+                onChange={handleMultiFileChange} 
+                multiple 
+                accept=".sqlite,.db,.sqlite3"
+                className="hidden" 
               />
 
               <button
