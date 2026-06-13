@@ -16,7 +16,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', '"Noto Sans JP"', 'sans-serif'],
-        mono: ['Consolas', '"Courier New"', 'monospace'],
+        mono: ['"Noto Sans Mono"', '"Noto Sans JP"', 'Consolas', '"Courier New"', 'monospace'],
       }
     },
   },

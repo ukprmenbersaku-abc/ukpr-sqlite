@@ -207,7 +207,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     const placeholders: { [key: string]: string } = {};
     let placeholderId = 0;
 
-    // Escape HTML
+    // Escape HTML (Using standard text escaping)
     let processed = text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -249,18 +249,23 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     sortedKeywords.forEach(kw => {
       const escapedKw = kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
       const regex = new RegExp(`\\b(${escapedKw})\\b`, 'gi');
-      processed = processed.replace(regex, (match) => `<mark_kw>${match}</mark_kw>`);
+      processed = processed.replace(regex, (match) => {
+        const id = `___KEYWORD_${placeholderId++}___`;
+        placeholders[id] = `<span class="text-indigo-400 font-semibold">${match}</span>`;
+        return id;
+      });
     });
 
-    // Style keywords
-    processed = processed.replace(/<mark_kw>(.*?)<\/mark_kw>/g, '<span class="text-indigo-400 font-semibold">$1</span>');
+    // Style numbers (Since no inline tag is written yet, this is safe and will not match within elements, and word boundaries prevent matching placeholder ids)
+    processed = processed.replace(/\b(\d+)\b/g, (match) => {
+      const id = `___NUM_${placeholderId++}___`;
+      placeholders[id] = `<span class="text-amber-400">${match}</span>`;
+      return id;
+    });
 
-    // Style numbers
-    processed = processed.replace(/\b(\d+)\b/g, '<span class="text-amber-400">$1</span>');
-
-    // Put placeholders back
+    // Put placeholders back (Using mapping functions to avoid '$' replacement parsing bugs)
     Object.keys(placeholders).forEach(id => {
-      processed = processed.replace(id, placeholders[id]);
+      processed = processed.replace(id, () => placeholders[id]);
     });
 
     return processed;
