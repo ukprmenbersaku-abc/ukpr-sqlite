@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { TableInfo, ViewMode } from '../types.ts';
-import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download, BookOpen } from 'lucide-react';
+import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download, BookOpen, Folders } from 'lucide-react';
 
 interface SidebarProps {
   tables: TableInfo[];
@@ -15,6 +15,7 @@ interface SidebarProps {
   activeTable: string | null;
   isFileLoaded: boolean;
   onFileOpen: (file: File) => void;
+  onFolderOpen: (files: File[]) => void;
   onCreateNew: () => void;
   onCloseFile: () => void;
   onDownloadFile: () => void;
@@ -32,17 +33,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTable,
   isFileLoaded,
   onFileOpen,
+  onFolderOpen,
   onCreateNew,
   onCloseFile,
   onDownloadFile
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const directoryInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       onFileOpen(file);
       // Reset input so same file can be selected again if needed
+      event.target.value = '';
+    }
+  };
+
+  const handleDirectoryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      onFolderOpen(files);
       event.target.value = '';
     }
   };
@@ -97,6 +108,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onChange={handleFileChange} 
                 accept=".sqlite,.db,.sqlite3" 
                 className="hidden" 
+              />
+
+              <button
+                onClick={() => directoryInputRef.current?.click()}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
+                title="フォルダ内の複数SQLiteを一括で読み込んで結合できるようにします"
+              >
+                <Folders size={18} className="text-amber-400" />
+                <span>フォルダを開く</span>
+              </button>
+              <input 
+                type="file" 
+                ref={directoryInputRef} 
+                onChange={handleDirectoryChange} 
+                className="hidden" 
+                {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
               />
 
               <button

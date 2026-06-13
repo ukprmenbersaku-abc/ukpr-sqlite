@@ -59,21 +59,126 @@ export const executeQuery = (sql: string): QueryResult | null => {
   }
 };
 
-export const getTables = (): TableInfo[] => {
-  if (!db) return [];
-  const result = executeQuery("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
-  if (!result) return [];
+export const attachDatabase = async (name: string, buffer: ArrayBuffer): Promise<string> => {
+  await initSqlJs();
+  if (!db) {
+    db = new SQL.Database();
+  }
   
-  return result.values.map((row: any[]) => ({
-    name: row[0] as string,
-    schema: row[1] as string
-  }));
+  // Clean alias name to fit SQLite identifier guidelines (no dots, alphanumeric + underscores only)
+  const aliasName = name.replace(/\.(sqlite3|sqlite|db)$/i, '').replace(/[^a-zA-Z0-9_]/g, '_');
+  const fileName = `/db_${aliasName}.db`;
+
+  try {
+    // Delete if existing inside SQLite Emscripten FS
+    try {
+      if (SQL.FS) {
+        SQL.FS.unlink(fileName);
+      }
+    } catch(e) {}
+
+    if (SQL.FS && typeof SQL.FS.writeFile === 'function') {
+      SQL.FS.writeFile(fileName, new Uint8Array(buffer));
+    } else if (SQL.FS && typeof SQL.FS.createDataFile === 'function') {
+      SQL.FS.createDataFile('/', `db_${aliasName}.db`, new Uint8Array(buffer), true, true);
+    } else {
+      throw new Error("Virtual File System is inaccessible in SQL.js.");
+    }
+
+    if (!db) {
+      throw new Error("Database not initialized");
+    }
+    db.run(`ATTACH DATABASE '${fileName}' AS ${aliasName}`);
+    return aliasName;
+  } catch (err: any) {
+    console.error("Failed to attach database:", err);
+    throw new Error(`Failed to attach ${name}: ${err.message}`);
+  }
 };
 
-// Modified to include rowid for editing purposes
+export const getTables = (): TableInfo[] => {
+  if (!db) return [];
+  const tables: TableInfo[] = [];
+
+  try {
+    const dbsResult = db.exec("PRAGMA database_list");
+    if (dbsResult && dbsResult.length > 0) {
+      const dbRows = dbsResult[0].values;
+      for (const row of dbRows) {
+        const dbName = row[1] as string; // 'main', 'temp', or attached alias
+        if (dbName === 'temp') continue;
+
+        try {
+          const masterTable = dbName === 'main' ? 'sqlite_master' : `"${dbName}".sqlite_master`;
+          const query = `SELECT name, sql FROM ${masterTable} WHERE type='table' AND name NOT LIKE 'sqlite_%'`;
+          const results = db.exec(query);
+          if (results && results.length > 0) {
+            results[0].values.forEach((valRow: any[]) => {
+              const tableName = valRow[0] as string;
+              const schema = valRow[1] as string;
+              const displayName = dbName === 'main' ? tableName : `${dbName}.${tableName}`;
+              tables.push({
+                name: displayName,
+                schema: schema || `-- No schema available for ${displayName}`
+              });
+            });
+          }
+        } catch (e) {
+          console.error(`Error querying master table for database '${dbName}':`, e);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error retrieving comprehensive tables list, falling back to main:", err);
+    const result = executeQuery("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+    if (result) {
+      result.values.forEach((row: any[]) => {
+        tables.push({
+          name: row[0] as string,
+          schema: row[1] as string
+        });
+      });
+    }
+  }
+
+  return tables;
+};
+
+export const getTableColumns = (tableName: string): string[] => {
+  if (!db) return [];
+  try {
+    const parts = tableName.split('.');
+    let query = `PRAGMA table_info("${tableName}")`;
+    if (parts.length > 1) {
+      const dbAlias = parts[0];
+      const realTableName = parts.slice(1).join('.');
+      query = `PRAGMA "${dbAlias}".table_info("${realTableName}")`;
+    }
+    const results = db.exec(query);
+    if (results.length === 0) return [];
+    return results[0].values.map((row: any[]) => row[1] as string);
+  } catch (err) {
+    console.error("PRAGMA error", err);
+    return [];
+  }
+};
+
+// Modified to include rowid for editing purposes, safely accounting for attached databases
 export const getTableData = (tableName: string, limit: number = 100): QueryResult | null => {
-  // We fetch rowid to identify rows for updates/deletes, but we might hide it in UI if needed
-  return executeQuery(`SELECT rowid, * FROM "${tableName}" LIMIT ${limit}`);
+  const parts = tableName.split('.');
+  let targetTable = `"${tableName}"`;
+  if (parts.length > 1) {
+    const dbAlias = parts[0];
+    const realTableName = parts.slice(1).join('.');
+    targetTable = `"${dbAlias}"."${realTableName}"`;
+  }
+
+  try {
+    return executeQuery(`SELECT rowid, * FROM ${targetTable} LIMIT ${limit}`);
+  } catch (err) {
+    // Fallback if rowid is not supported/accessible or attached table without rowid
+    return executeQuery(`SELECT * FROM ${targetTable} LIMIT ${limit}`);
+  }
 };
 
 export const getDatabaseSchema = (): string => {

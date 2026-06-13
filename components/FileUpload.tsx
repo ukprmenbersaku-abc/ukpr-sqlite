@@ -1,13 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FilePlus, ChevronDown, ChevronUp, Shield, Zap, Globe } from 'lucide-react';
+import { Upload, FilePlus, ChevronDown, ChevronUp, Shield, Zap, Globe, Folders } from 'lucide-react';
 
 interface FileUploadProps {
   onFileLoaded: (file: File) => void;
   onCreateNew: () => void;
+  onFolderLoaded: (files: File[]) => void;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNew }) => {
+export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNew, onFolderLoaded }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const directoryInputRef = useRef<HTMLInputElement>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -17,25 +19,33 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
     }
   };
 
+  const handleDirectoryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length > 0) {
+      onFolderLoaded(files);
+    }
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center h-full p-4 md:p-8 text-center animate-in fade-in duration-500 overflow-y-auto">
-      <div className="max-w-2xl w-full flex flex-col items-center py-10">
+    <div className="flex flex-col items-center w-full h-full p-4 md:p-8 text-center animate-in fade-in duration-500 overflow-y-auto">
+      <div className="max-w-4xl w-full flex flex-col items-center py-10 my-auto">
         
         <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white tracking-tight">
           SQLite on Web
         </h2>
-        <p className="text-slate-400 mb-10 max-w-md mx-auto text-sm md:text-base leading-relaxed">
+        <p className="text-slate-400 mb-10 max-w-xl mx-auto text-sm md:text-base leading-relaxed">
           SQLiteファイルを選択して中身を確認・編集するか、<br/>
-          新しいデータベースを作成して作業を開始しましょう。
+          またはフォルダを開いて複数のデータベースを結合表示するか、新規作成して開始しましょう。
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-lg mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl mb-12">
+          {/* File Open */}
           <button 
             onClick={() => fileInputRef.current?.click()}
-            className="group flex flex-col items-center justify-center gap-4 p-8 rounded-2xl bg-slate-800 border-2 border-slate-700 hover:border-blue-500 hover:bg-slate-800/80 transition-all duration-300 shadow-xl"
+            className="group flex flex-col items-center justify-center gap-4 p-6 rounded-2xl bg-slate-800 border-2 border-slate-700 hover:border-blue-500 hover:bg-slate-800/80 transition-all duration-300 shadow-xl"
           >
             <div className="p-4 rounded-full bg-slate-900 group-hover:bg-blue-900/30 text-blue-400 transition-colors shadow-inner">
-              <Upload size={32} />
+              <Upload size={28} />
             </div>
             <div className="text-center">
               <div className="font-semibold text-white mb-1">ファイルを開く</div>
@@ -50,12 +60,34 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
             className="hidden" 
           />
 
+          {/* Folder Open */}
+          <button 
+            onClick={() => directoryInputRef.current?.click()}
+            className="group flex flex-col items-center justify-center gap-4 p-6 rounded-2xl bg-slate-800 border-2 border-slate-700 hover:border-amber-500 hover:bg-slate-800/80 transition-all duration-300 shadow-xl"
+          >
+            <div className="p-4 rounded-full bg-slate-900 group-hover:bg-amber-900/30 text-amber-500 transition-colors shadow-inner">
+              <Folders size={28} />
+            </div>
+            <div className="text-center">
+              <div className="font-semibold text-white mb-1">フォルダを開く</div>
+              <div className="text-xs text-slate-500">複数のデータベースをロード</div>
+            </div>
+          </button>
+          <input 
+            type="file" 
+            ref={directoryInputRef} 
+            onChange={handleDirectoryChange} 
+            className="hidden" 
+            {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
+          />
+
+          {/* Create New */}
           <button 
             onClick={onCreateNew}
-            className="group flex flex-col items-center justify-center gap-4 p-8 rounded-2xl bg-slate-800 border-2 border-slate-700 hover:border-green-500 hover:bg-slate-800/80 transition-all duration-300 shadow-xl"
+            className="group flex flex-col items-center justify-center gap-4 p-6 rounded-2xl bg-slate-800 border-2 border-slate-700 hover:border-green-500 hover:bg-slate-800/80 transition-all duration-300 shadow-xl"
           >
              <div className="p-4 rounded-full bg-slate-900 group-hover:bg-green-900/30 text-green-400 transition-colors shadow-inner">
-              <FilePlus size={32} />
+              <FilePlus size={28} />
             </div>
             <div className="text-center">
               <div className="font-semibold text-white mb-1">新規作成</div>

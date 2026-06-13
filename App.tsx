@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload.tsx';
 import { Sidebar } from './components/Sidebar.tsx';
 import { DataTable } from './components/DataTable.tsx';
@@ -7,6 +7,7 @@ import { SqlEditor } from './components/SqlEditor.tsx';
 import { AiAssistant } from './components/AiAssistant.tsx';
 import { QueryExamples } from './components/QueryExamples.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
+import { JoinVisualizer } from './components/JoinVisualizer.tsx';
 import { 
   loadDatabase, 
   createNewDatabase, 
@@ -18,7 +19,9 @@ import {
   updateCellValue,
   deleteRow,
   insertRow,
-  dropTable
+  dropTable,
+  getTableColumns,
+  attachDatabase
 } from './services/sqliteService.ts';
 import { TableInfo, QueryResult, ViewMode } from './types.ts';
 import { Menu } from 'lucide-react';
@@ -33,6 +36,117 @@ function App() {
   const [editorSql, setEditorSql] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [executionTime, setExecutionTime] = useState<number | null>(null);
+
+  const globalFolderInputRef = useRef<HTMLInputElement>(null);
+
+  const openFolderPicker = () => {
+    globalFolderInputRef.current?.click();
+  };
+
+  const onFolderLoaded = async (files: File[]) => {
+    try {
+      const dbFiles = files.filter(f => f.name.match(/\.(sqlite|db|sqlite3)$/i));
+      if (dbFiles.length === 0) {
+        alert("選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。");
+        return;
+      }
+
+      setError(null);
+      // Load first file as primary database
+      const firstFile = dbFiles[0];
+      const firstBuffer = await firstFile.arrayBuffer();
+      await loadDatabase(firstBuffer);
+      setFileName(firstFile.name);
+
+      // Attach remaining databases
+      const attachedList: string[] = [];
+      for (let i = 1; i < dbFiles.length; i++) {
+        const file = dbFiles[i];
+        const buffer = await file.arrayBuffer();
+        try {
+          const alias = await attachDatabase(file.name, buffer);
+          attachedList.push(`${file.name} (as '${alias}')`);
+        } catch (attachErr: any) {
+          console.error(`Error attaching ${file.name}:`, attachErr);
+        }
+      }
+
+      refreshTables();
+      setIsFileLoaded(true);
+      setCurrentView('BROWSE');
+      setIsSidebarOpen(false);
+
+      if (attachedList.length > 0) {
+        alert(
+          `${firstFile.name} をメインデータベースとして読み込み、以下の ${attachedList.length} 件のデータベースファイルを正常にマウント（ATTACH）しました！\n\n` +
+          attachedList.join('\n') +
+          `\n\n各テーブルはデータベース名を付与して相互に結合（JOIN）検索できます。（例: SELECT * FROM main_table JOIN ${attachedList[0].split(' ')[1]} ...）`
+        );
+      } else {
+        alert(`${firstFile.name} を正常に読み込みました。`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(`フォルダの展開中にエラーが発生しました: ${e.message}`);
+    }
+  };
+
+  // Register Keyboard Shortcuts
+  useEffect(() => {
+    let ctrlKActive = false;
+    let ctrlKTimeout: any = null;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl + S: Save / Download the database
+      if (isCtrl && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (isFileLoaded) {
+          onDownloadFile();
+        } else {
+          alert("保存・保存用ダウンロードを実行するデータベースが読み込まれていません。");
+        }
+        return;
+      }
+
+      // Ctrl + W: Close current database / workspace
+      if (isCtrl && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        if (isFileLoaded) {
+          onCloseFileRequest();
+        }
+        return;
+      }
+
+      // Ctrl + K chord start prefix
+      if (isCtrl && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        ctrlKActive = true;
+        if (ctrlKTimeout) clearTimeout(ctrlKTimeout);
+        ctrlKTimeout = setTimeout(() => {
+          ctrlKActive = false;
+        }, 1500);
+        return;
+      }
+
+      // Ctrl + K followed by O: Open Folder picker
+      if (ctrlKActive && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        ctrlKActive = false;
+        if (ctrlKTimeout) clearTimeout(ctrlKTimeout);
+        openFolderPicker();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (ctrlKTimeout) clearTimeout(ctrlKTimeout);
+    };
+  }, [isFileLoaded, fileName]);
 
   // Modal State
   const [modalConfig, setModalConfig] = useState<{
@@ -160,11 +274,15 @@ function App() {
     setError(null);
     setIsSidebarOpen(false);
     try {
+      const startTime = performance.now();
       const data = getTableData(tableName);
+      const endTime = performance.now();
       setQueryResult(data);
+      setExecutionTime(endTime - startTime);
     } catch (e: any) {
       setError(e.message);
       setQueryResult(null);
+      setExecutionTime(null);
     }
   };
 
@@ -236,9 +354,13 @@ function App() {
 
   const handleExecuteSql = (sql: string) => {
     setError(null);
+    setEditorSql(sql);
     try {
+      const startTime = performance.now();
       const res = executeQuery(sql);
+      const endTime = performance.now();
       setQueryResult(res);
+      setExecutionTime(endTime - startTime);
       // If it was a modification query, refresh tables list
       if (sql.trim().toUpperCase().match(/^(CREATE|DROP|ALTER|INSERT|UPDATE|DELETE)/)) {
         const t = getTables();
@@ -247,7 +369,27 @@ function App() {
     } catch (e: any) {
       setError(e.message);
       setQueryResult(null);
+      setExecutionTime(null);
     }
+  };
+
+  const handleGetSuggestions = () => {
+    const tableNames = tables.map(t => t.name);
+    const columnNames: string[] = [];
+    tableNames.forEach(tName => {
+      try {
+        const cols = getTableColumns(tName);
+        columnNames.push(...cols);
+      } catch (e) {
+        // ignore
+      }
+    });
+    // Remove duplicates
+    const uniqueColumns = Array.from(new Set(columnNames));
+    return {
+      tables: tableNames,
+      columns: uniqueColumns
+    };
   };
 
   const handleAiGeneratedSql = (sql: string) => {
@@ -294,6 +436,7 @@ function App() {
         activeTable={activeTable}
         isFileLoaded={isFileLoaded}
         onFileOpen={onFileLoaded}
+        onFolderOpen={onFolderLoaded}
         onCreateNew={onCreateNew}
         onCloseFile={onCloseFileRequest}
         onDownloadFile={onDownloadFile}
@@ -310,7 +453,7 @@ function App() {
               <Menu size={24} />
             </button>
             <h1 className="text-base md:text-lg font-semibold text-slate-200 truncate">
-              {!isFileLoaded ? 'ホーム' : 
+               {!isFileLoaded ? 'ホーム' : 
                 currentView === 'BROWSE' && activeTable ? `${activeTable}` : 
                 currentView === 'SQL' ? 'SQL Editor' : 
                 currentView === 'AI' ? 'AI Assistant' : 'SQL Query 例'}
@@ -328,13 +471,24 @@ function App() {
           
           {!isFileLoaded ? (
             // No File Loaded State (Home Screen)
-            <FileUpload onFileLoaded={onFileLoaded} onCreateNew={onCreateNew} />
+            <FileUpload 
+              onFileLoaded={onFileLoaded} 
+              onCreateNew={onCreateNew} 
+              onFolderLoaded={onFolderLoaded} 
+            />
           ) : (
             // File Loaded State
             <>
               {/* BROWSE MODE */}
               {currentView === 'BROWSE' && (
                 <div className="flex-1 p-2 md:p-4 overflow-hidden flex flex-col">
+                  {executionTime !== null && (
+                    <div className="flex justify-end mb-2 px-1">
+                      <span className="text-xs text-slate-400 font-mono">
+                        実行時間: {executionTime.toFixed(1)}ms
+                      </span>
+                    </div>
+                  )}
                   <DataTable 
                     data={queryResult} 
                     className="h-full" 
@@ -356,10 +510,23 @@ function App() {
                       initialSql={editorSql} 
                       onExecute={handleExecuteSql} 
                       error={error}
+                      getSuggestions={handleGetSuggestions}
                     />
                   </div>
                   <div className="flex-1 p-2 md:p-4 bg-slate-900 overflow-hidden border-t border-slate-800 flex flex-col">
-                     <div className="text-xs text-slate-500 mb-2 uppercase tracking-wider font-semibold px-1">Results</div>
+                     <div className="flex items-center justify-between mb-2 px-1 shrink-0">
+                        <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Results</div>
+                        {executionTime !== null && (
+                          <div className="text-xs text-slate-400 font-mono">
+                            実行時間: {executionTime.toFixed(1)}ms
+                          </div>
+                        )}
+                     </div>
+                     {editorSql && (
+                       <div className="shrink-0 max-h-56 overflow-y-auto mb-3">
+                         <JoinVisualizer sql={editorSql} />
+                       </div>
+                     )}
                      <DataTable data={queryResult} className="flex-1" />
                   </div>
                 </div>
@@ -381,6 +548,20 @@ function App() {
           )}
         </div>
       </main>
+
+      <input 
+        type="file" 
+        ref={globalFolderInputRef} 
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          if (files.length > 0) {
+            onFolderLoaded(files);
+          }
+          e.target.value = '';
+        }} 
+        className="hidden" 
+        {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
+      />
     </div>
   );
 }
