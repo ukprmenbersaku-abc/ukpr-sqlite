@@ -207,6 +207,19 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     const placeholders: { [key: string]: string } = {};
     let placeholderId = 0;
 
+    // Helper to generate a purely alphabetical base26 ID (e.g. A, B, ..., AA, AB)
+    // This completely prevents placeholder IDs from containing digits, ensuring
+    // they are never matched by the number styling regex.
+    const getAlphaId = (num: number): string => {
+      let result = '';
+      let n = num;
+      do {
+        result = String.fromCharCode(65 + (n % 26)) + result;
+        n = Math.floor(n / 26) - 1;
+      } while (n >= 0);
+      return result;
+    };
+
     // Escape HTML (Using standard text escaping)
     let processed = text
       .replace(/&/g, '&amp;')
@@ -215,21 +228,21 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
 
     // Strings (double quotes)
     processed = processed.replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, (match) => {
-      const id = `___STR_DBL_${placeholderId++}___`;
+      const id = `___STR_DBL_${getAlphaId(placeholderId++)}___`;
       placeholders[id] = `<span class="text-emerald-400">${match}</span>`;
       return id;
     });
 
     // Strings (single quotes)
     processed = processed.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (match) => {
-      const id = `___STR_SGL_${placeholderId++}___`;
+      const id = `___STR_SGL_${getAlphaId(placeholderId++)}___`;
       placeholders[id] = `<span class="text-emerald-400">${match}</span>`;
       return id;
     });
 
     // Comments (inline --)
     processed = processed.replace(/(--.*)/g, (match) => {
-      const id = `___COMM_INL_${placeholderId++}___`;
+      const id = `___COMM_INL_${getAlphaId(placeholderId++)}___`;
       placeholders[id] = `<span class="text-slate-500 italic font-light">${match}</span>`;
       return id;
     });
@@ -250,23 +263,25 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
       const escapedKw = kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
       const regex = new RegExp(`\\b(${escapedKw})\\b`, 'gi');
       processed = processed.replace(regex, (match) => {
-        const id = `___KEYWORD_${placeholderId++}___`;
+        const id = `___KEYWORD_${getAlphaId(placeholderId++)}___`;
         placeholders[id] = `<span class="text-indigo-400 font-semibold">${match}</span>`;
         return id;
       });
     });
 
-    // Style numbers (Since no inline tag is written yet, this is safe and will not match within elements, and word boundaries prevent matching placeholder ids)
+    // Style numbers (Using word boundaries; safe because our placeholder IDs are purely alphabetical)
     processed = processed.replace(/\b(\d+)\b/g, (match) => {
-      const id = `___NUM_${placeholderId++}___`;
+      const id = `___NUM_${getAlphaId(placeholderId++)}___`;
       placeholders[id] = `<span class="text-amber-400">${match}</span>`;
       return id;
     });
 
-    // Put placeholders back (Using mapping functions to avoid '$' replacement parsing bugs)
-    Object.keys(placeholders).forEach(id => {
-      processed = processed.replace(id, () => placeholders[id]);
-    });
+    // Put placeholders back (Sort keys by length descending to prevent substring collisions)
+    Object.keys(placeholders)
+      .sort((a, b) => b.length - a.length)
+      .forEach(id => {
+        processed = processed.replace(id, () => placeholders[id]);
+      });
 
     return processed;
   };

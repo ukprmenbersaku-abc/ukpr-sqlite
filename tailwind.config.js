@@ -15,8 +15,8 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Inter', '"Noto Sans JP"', 'sans-serif'],
-        mono: ['"Noto Sans Mono"', '"Noto Sans JP"', 'Consolas', '"Courier New"', 'monospace'],
+        sans: ['Inter', '"Noto Sans JP"', '"Segoe UI Emoji"', '"Apple Color Emoji"', '"Noto Color Emoji"', 'sans-serif'],
+        mono: ['"M PLUS 1 Code"', '"Noto Sans Mono"', '"Noto Sans JP"', 'Consolas', '"Courier New"', 'monospace'],
       }
     },
   },

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, Sparkles, HelpCircle, ArrowRight, Loader2, Key } from 'lucide-react';
 import { repairSqlWithError } from '../services/geminiService.ts';
 import { getDatabaseSchema } from '../services/sqliteService.ts';
+import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface SqlErrorDetailsProps {
   error: string;
@@ -14,6 +15,7 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
   badSql, 
   onRepairSuccess 
 }) => {
+  const { lang, t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [repairError, setRepairError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState<string>('');
@@ -30,12 +32,12 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
     const err = error.toLowerCase();
     
     if (err.includes('no such table')) {
-      const match = error.match(/no such table:\s*(\w+)/i);
+      const match = error.match(/no such table:\s*([\w.]+)/i);
       const tableName = match ? match[1] : '';
       return {
-        title: `テーブル "${tableName}" が見つかりません`,
-        desc: `クエリで指定されたテーブル名 "${tableName}" はデータベース内に存在しないか、スペルが間違っている可能性があります。左側のサイドバーで正しいテーブル名を確認してください。`,
-        tip: 'フォルダを開いている場合は、テーブル名が「db_alias.table_name」のようになっている可能性があります。「db_alias.」を補うか、適切なデータベース名が付いているか確認してください。'
+        title: t.friendlyErrorTableNotFoundTitle.replace('{tableName}', tableName),
+        desc: t.friendlyErrorTableNotFoundDesc.replace('{tableName}', tableName),
+        tip: t.friendlyErrorTableNotFoundTip
       };
     }
     
@@ -43,17 +45,17 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
       const match = error.match(/no such column:\s*([\w.]+)/i);
       const colName = match ? match[1] : '';
       return {
-        title: `カラム "${colName}" が見つかりません`,
-        desc: `クエリ内の列名 "${colName}" が間違っているか、存在しない列を参照しています。`,
-        tip: 'スペルミスや、テーブルの指定ミス（例: table_a.column_b）がないか確認してください。'
+        title: t.friendlyErrorColumnNotFoundTitle.replace('{colName}', colName),
+        desc: t.friendlyErrorColumnNotFoundDesc.replace('{colName}', colName),
+        tip: t.friendlyErrorColumnNotFoundTip
       };
     }
 
     if (err.includes('syntax error') || err.includes('near')) {
       return {
-        title: 'SQL文法エラー (Syntax Error)',
-        desc: 'SQLiteが解釈できない単語や、誤った記号配置（カンマの過不足、括弧の不整合など）が検出されました。',
-        tip: 'SELECT、FROM、WHERE などのキーワードが正しい順序で配置されているか、または引用符 (\' または ") を正しく閉じているか確認してください。'
+        title: t.friendlyErrorSyntaxTitle,
+        desc: t.friendlyErrorSyntaxDesc,
+        tip: t.friendlyErrorSyntaxTip
       };
     }
 
@@ -61,16 +63,16 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
       const match = error.match(/ambiguous column name:\s*([\w.]+)/i);
       const colName = match ? match[1] : '';
       return {
-        title: `曖昧なカラム名: "${colName}"`,
-        desc: `結合(JOIN)している複数のテーブルに、同じ列名 "${colName}" が存在するため、SQLiteがどちらのテーブルの列を処理すべきか判別できません。`,
-        tip: `カラム名の前にテーブル名またはエイリアスを補ってください。例: "users.${colName}" や "orders.${colName}"`
+        title: t.friendlyErrorAmbiguousTitle.replace('{colName}', colName),
+        desc: t.friendlyErrorAmbiguousDesc.replace('{colName}', colName),
+        tip: t.friendlyErrorAmbiguousTip.replace(/{colName}/g, colName)
       };
     }
 
     return {
-      title: 'クエリ実行エラー',
+      title: t.errorTitle,
       desc: error,
-      tip: 'クエリの記述内容や、データベース構造に適合しているか確認してください。'
+      tip: t.friendlyErrorDefaultTip
     };
   };
 
@@ -100,7 +102,7 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
       onRepairSuccess(repaired);
     } catch (err: any) {
       console.error(err);
-      setRepairError(err.message || 'AIによる修正処理中にエラーが発生しました');
+      setRepairError(err.message || (lang === 'ja' ? 'AIによる修正処理中にエラーが発生しました' : 'An error occurred during the AI repair process'));
     } finally {
       setLoading(false);
     }
@@ -121,7 +123,7 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
           <div className="bg-slate-900/60 rounded-lg border border-slate-800 p-3 text-xs mb-3">
             <div className="flex items-center gap-1.5 text-amber-400/90 font-medium mb-1.5">
               <HelpCircle size={14} />
-              <span>解決のヒント</span>
+              <span>{t.errorHintTitle}</span>
             </div>
             <p className="text-slate-400 leading-relaxed font-sans">{expl.tip}</p>
           </div>
@@ -135,24 +137,26 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
               {loading ? (
                 <>
                   <Loader2 size={14} className="animate-spin" />
-                  <span>AIが修復中...</span>
+                  <span>{t.aiRepairing}</span>
                 </>
               ) : (
                 <>
                   <Sparkles size={14} />
-                  <span>AIで自動修正する</span>
+                  <span>{t.aiRepairBtn}</span>
                 </>
               )}
             </button>
             
             <span className="text-[10px] text-slate-500 font-mono">
-              エラーコード: {error.split(':')[0]}
+              {t.errorCode}: {error.split(':')[0]}
             </span>
           </div>
 
           {needsKey && (
             <form onSubmit={handleSaveKey} className="mt-4 p-3 bg-slate-900 border border-slate-800 rounded-lg animate-in slide-in-from-top-2 duration-200">
-              <div className="text-xs text-slate-300 mb-2 font-medium">Gemini APIキーを入力してください</div>
+              <div className="text-xs text-slate-300 mb-2 font-medium">
+                {lang === 'ja' ? 'Gemini APIキーを入力してください' : 'Please enter your Gemini API key'}
+              </div>
               <div className="flex gap-2">
                 <input
                   type="password"
@@ -166,7 +170,7 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
                   disabled={!inputKey.trim()}
                   className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded text-xs font-medium disabled:opacity-50 transition-colors"
                 >
-                  保存
+                  {t.saveKeyBtn}
                 </button>
               </div>
               <div className="mt-1.5">
@@ -176,7 +180,7 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
                   rel="noreferrer"
                   className="text-[10px] text-purple-400 hover:text-purple-300 underline"
                 >
-                  APIキーを無料で取得
+                  {lang === 'ja' ? 'APIキーを無料で取得' : 'Get free API Key'}
                 </a>
               </div>
             </form>

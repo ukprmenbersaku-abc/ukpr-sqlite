@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { BookOpen, ChevronDown, Terminal, Sparkles } from 'lucide-react';
+import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface QueryExamplesProps {
   onSelectSql: (sql: string) => void;
@@ -8,6 +9,7 @@ interface QueryExamplesProps {
 }
 
 export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activeTable }) => {
+  const { lang, t } = useLanguage();
   const tableName = activeTable ? `"${activeTable}"` : 'table_name';
   // 開いているアイテムのキーを配列で管理（最大数を制御するため）
   const [openItems, setOpenItems] = useState<string[]>([]);
@@ -32,69 +34,69 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
 
   const examples = [
     {
-      category: "基本操作",
+      category: t.basicOps,
       icon: <Terminal size={18} />,
       items: [
         {
-          title: "全件取得 (制限付き)",
-          desc: "テーブルのデータを最初の100件だけ取得します。データの中身をとりあえず確認したい時に使います。",
+          title: t.example1Title,
+          desc: t.example1Desc,
           sql: `SELECT * FROM ${tableName} LIMIT 100;`
         },
         {
-          title: "特定の列のみ取得",
-          desc: "必要な列だけを指定してデータを取得します。余計なデータを省くことで見やすくなります。",
+          title: t.example2Title,
+          desc: t.example2Desc,
           sql: `SELECT column1, column2 FROM ${tableName} LIMIT 100;`
         },
         {
-          title: "条件付き検索 (完全一致)",
-          desc: "特定の条件にピタリと一致する行を探します。",
+          title: t.example3Title,
+          desc: t.example3Desc,
           sql: `SELECT * FROM ${tableName} WHERE column_name = 'value';`
         },
         {
-          title: "あいまい検索",
-          desc: "キーワードを含むデータを検索します。「%」は任意の文字を表すワイルドカードです。",
+          title: t.example4Title,
+          desc: t.example4Desc,
           sql: `SELECT * FROM ${tableName} WHERE column_name LIKE '%keyword%';`
         }
       ]
     },
     {
-      category: "集計・並び替え",
+      category: t.aggregations,
       icon: <Sparkles size={18} />,
       items: [
         {
-          title: "行数をカウント",
-          desc: "テーブルにデータが何件あるか数えます。",
+          title: t.example5Title,
+          desc: t.example5Desc,
           sql: `SELECT COUNT(*) as count FROM ${tableName};`
         },
         {
-          title: "並び替え (降順)",
-          desc: "数字の大きい順、または日付の新しい順などでデータを並び替えます。",
+          title: t.example6Title,
+          desc: t.example6Desc,
           sql: `SELECT * FROM ${tableName} ORDER BY column_name DESC LIMIT 100;`
         },
         {
-          title: "グループ化して集計",
-          desc: "カテゴリや種類ごとに、それぞれ何件あるかを集計します。",
+          title: t.example7Title,
+          desc: t.example7Desc,
           sql: `SELECT category_col, COUNT(*) FROM ${tableName} GROUP BY category_col;`
         }
       ]
     },
     {
-      category: "データ操作 (DML)",
+      category: t.dmlOps,
       icon: <Terminal size={18} />,
       items: [
         {
-          title: "データの挿入",
-          desc: "新しいデータをテーブルに追加します。カラムの順番通りに値を指定します。",
+          title: t.example8Title,
+          desc: t.example8Desc,
           sql: `INSERT INTO ${tableName} (column1, column2) VALUES ('value1', 123);`
         },
         {
-          title: "データの更新",
-          desc: "条件に一致するデータを新しい値に書き換えます。WHERE句を忘れると全件更新されるので注意！",
+          title: t.example9Title,
+          desc: t.example9Desc,
           sql: `UPDATE ${tableName} SET column1 = 'new_value' WHERE id = 1;`
         },
         {
-          title: "データの削除",
-          desc: "条件に一致するデータを削除します。これもWHERE句を忘れると大変なことになります。",
+          title: t.example10Title,
+          desc: t.example10Desc,
           sql: `DELETE FROM ${tableName} WHERE id = 1;`
         }
       ]
@@ -109,9 +111,9 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
             <BookOpen className="text-cyan-400" size={24} />
           </div>
           <div>
-            <h2 className="text-xl md:text-2xl font-bold text-white">SQL Query 例</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-white">{t.queryExamples}</h2>
             <p className="text-slate-400 text-sm mt-1">
-              よく使われるSQLパターン集です。クリックしてSQLを生成できます。
+              {t.examplesSubtitle}
             </p>
           </div>
         </div>
@@ -180,7 +182,7 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
                                 className="flex items-center gap-2 px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold transition-all hover:shadow-lg hover:shadow-cyan-900/20 active:scale-95 w-full sm:w-auto justify-center"
                               >
                                 <Terminal size={16} />
-                                エディタで試す
+                                {lang === 'ja' ? 'エディタで試す' : 'Try in Editor'}
                               </button>
                             </div>
                           </div>

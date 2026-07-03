@@ -2,6 +2,7 @@
 import React, { useRef } from 'react';
 import { TableInfo, ViewMode } from '../types.ts';
 import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download, BookOpen, Folders } from 'lucide-react';
+import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface SidebarProps {
   tables: TableInfo[];
@@ -38,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseFile,
   onDownloadFile
 }) => {
+  const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const directoryInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
@@ -101,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* File Operations */}
           <div className="px-2">
             <div className="mb-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              ファイル操作
+              {t.fileOperations}
             </div>
             <div className="space-y-1">
               <button
@@ -109,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
               >
                 <FolderOpen size={18} className="text-blue-400" />
-                <span>ファイルを開く</span>
+                <span>{t.openFileBtn}</span>
               </button>
               <input 
                 type="file" 
@@ -122,10 +124,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => directoryInputRef.current?.click()}
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
-                title="フォルダ内の複数SQLiteを一括で読み込んで結合できるようにします。うまくフォルダが開けない場合はすぐ下の複数ファイル選択や、ホーム上のドラッグ＆ドロップをお試しください"
+                title={t.folderSelectTip}
               >
                 <Folders size={18} className="text-amber-400" />
-                <span>フォルダを開く</span>
+                <span>{t.openFolderBtn}</span>
               </button>
               <input 
                 type="file" 
@@ -139,9 +141,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => multiFileInputRef.current?.click()}
                 className="w-full flex items-center gap-2 px-3 py-1 text-xs font-medium text-amber-500 hover:bg-slate-800 hover:text-amber-400 rounded-md transition-colors text-left pl-10 -mt-1"
-                title="フォルダ選択ダイアログがサポートされていないブラウザ用（Ctrl/Cmdキーを押しながら複数選択可能）"
+                title={t.folderSelectFallbackTip}
               >
-                <span>※代わりに複数ファイルを選択</span>
+                <span>{t.selectMultiFallback}</span>
               </button>
               <input 
                 type="file" 
@@ -157,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
               >
                 <FilePlus size={18} className="text-green-400" />
-                <span>新規作成</span>
+                <span>{t.createNew}</span>
               </button>
 
               {isFileLoaded && (
@@ -167,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-md transition-colors text-left"
                   >
                     <Download size={18} className="text-purple-400" />
-                    <span>ファイルを保存</span>
+                    <span>{t.downloadFile}</span>
                   </button>
 
                   <button
@@ -176,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-slate-400 hover:bg-red-900/20 hover:text-red-400 rounded-md transition-colors text-left"
                   >
                     <LogOut size={18} />
-                    <span>ファイルを閉じる</span>
+                    <span>{t.closeConnection}</span>
                   </button>
                 </>
               )}
@@ -188,7 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <>
               <div className="px-2">
                 <div className="mb-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  モード
+                  {t.viewMode}
                 </div>
                 <nav className="space-y-1">
                   <button
@@ -200,7 +202,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }`}
                   >
                     <Terminal size={18} />
-                    SQLエディタ
+                    {t.sqlEditor}
                   </button>
                   <button
                     onClick={() => onViewChange('AI')}
@@ -211,7 +213,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }`}
                   >
                     <Sparkles size={18} />
-                    AIアシスタント
+                    {t.aiAssistant}
                   </button>
                   <button
                     onClick={() => onViewChange('EXAMPLES')}
@@ -222,14 +224,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }`}
                   >
                     <BookOpen size={18} />
-                    SQL Query 例
+                    {t.queryExamples}
                   </button>
                 </nav>
               </div>
 
               <div className="px-2 pb-20 md:pb-0">
                 <div className="mb-2 px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
-                  <span>テーブル ({tables.length})</span>
+                  <span>{t.tables} ({tables.length})</span>
                 </div>
                 <nav className="space-y-1">
                   {tables.map((table) => (
@@ -253,14 +255,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           onDeleteTable(table.name);
                         }}
                         className="p-2 text-slate-600 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-all focus:opacity-100"
-                        title="テーブルを削除"
+                        title={t.deleteTable}
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   ))}
                   {tables.length === 0 && (
-                    <div className="px-3 text-sm text-slate-600 italic">テーブルがありません</div>
+                    <div className="px-3 text-sm text-slate-600 italic">{t.noTables}</div>
                   )}
                 </nav>
               </div>
@@ -271,7 +273,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer info */}
         {isFileLoaded && fileName && (
           <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">現在のファイル</div>
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t.currentFile}</div>
             <div className="text-sm text-slate-300 font-medium truncate" title={fileName}>
               {fileName}
             </div>

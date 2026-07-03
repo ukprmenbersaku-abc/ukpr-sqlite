@@ -24,9 +24,22 @@ import {
   attachDatabase
 } from './services/sqliteService.ts';
 import { TableInfo, QueryResult, ViewMode } from './types.ts';
-import { Menu } from 'lucide-react';
+import { Menu, Sun, Moon } from 'lucide-react';
+import { useLanguage } from './utils/LanguageContext.tsx';
 
 function App() {
+  const { lang, setLang, t } = useLanguage();
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+  };
+
   const [isFileLoaded, setIsFileLoaded] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [tables, setTables] = useState<TableInfo[]>([]);
@@ -48,7 +61,36 @@ function App() {
     try {
       const dbFiles = files.filter(f => f.name.match(/\.(sqlite|db|sqlite3)$/i));
       if (dbFiles.length === 0) {
-        alert("選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。");
+        const isIframe = window.self !== window.top;
+        if (lang === 'ja') {
+          if (isIframe) {
+            alert(
+              "選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。\n\n" +
+              "【お知らせ】\n" +
+              "現在、プレビュー枠内(iFrame)のセキュリティ制限により、ブラウザがフォルダ内のファイルを正常に取得できていない可能性があります。\n" +
+              "お手数ですが、以下のいずれかをお試しください：\n" +
+              "1. 画面右上の「新窓（Open in New Tab）」ボタンから本アプリを開いて再度試す\n" +
+              "2. 「フォルダを開く」ボタンのすぐ下にある「※代わりに複数ファイルを選択」ボタンを使用する\n" +
+              "3. 複数のファイルを直接本画面にドラッグ＆ドロップする"
+            );
+          } else {
+            alert("選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。フォルダ内の構成を確認してください。");
+          }
+        } else {
+          if (isIframe) {
+            alert(
+              "No SQLite files (.db, .sqlite, .sqlite3) were found in the selected folder.\n\n" +
+              "【Notice】\n" +
+              "The preview iframe's security sandbox might be blocking folder access.\n" +
+              "Please try one of the following:\n" +
+              "1. Click the 'Open in New Tab' button in the top right to run the app in a dedicated window.\n" +
+              "2. Click the 'Select multiple files instead' button just below the Folder button.\n" +
+              "3. Select and drag & drop multiple database files directly onto this screen."
+            );
+          } else {
+            alert("No SQLite files (.db, .sqlite, .sqlite3) were found in the selected folder. Please check the folder contents.");
+          }
+        }
         return;
       }
 
@@ -78,17 +120,33 @@ function App() {
       setIsSidebarOpen(false);
 
       if (attachedList.length > 0) {
-        alert(
-          `${firstFile.name} をメインデータベースとして読み込み、以下の ${attachedList.length} 件のデータベースファイルを正常にマウント（ATTACH）しました！\n\n` +
-          attachedList.join('\n') +
-          `\n\n各テーブルはデータベース名を付与して相互に結合（JOIN）検索できます。（例: SELECT * FROM main_table JOIN ${attachedList[0].split(' ')[1]} ...）`
-        );
+        if (lang === 'ja') {
+          alert(
+            `${firstFile.name} をメインデータベースとして読み込み、以下の ${attachedList.length} 件のデータベースファイルを正常にマウント（ATTACH）しました！\n\n` +
+            attachedList.join('\n') +
+            `\n\n各テーブルはデータベース名を付与して相互に結合（JOIN）検索できます。（例: SELECT * FROM main_table JOIN ${attachedList[0].split(' ')[1]} ...）`
+          );
+        } else {
+          alert(
+            `Loaded ${firstFile.name} as primary database, and successfully attached ${attachedList.length} database files!\n\n` +
+            attachedList.join('\n') +
+            `\n\nYou can perform cross-joins by specifying database alias prefixes. (e.g., SELECT * FROM main_table JOIN ${attachedList[0].split(' ')[1]} ...)`
+          );
+        }
       } else {
-        alert(`${firstFile.name} を正常に読み込みました。`);
+        if (lang === 'ja') {
+          alert(`${firstFile.name} を正常に読み込みました。`);
+        } else {
+          alert(`Successfully loaded ${firstFile.name}.`);
+        }
       }
     } catch (e: any) {
       console.error(e);
-      alert(`フォルダの展開中にエラーが発生しました: ${e.message}`);
+      if (lang === 'ja') {
+        alert(`フォルダの展開中にエラーが発生しました: ${e.message}`);
+      } else {
+        alert(`An error occurred while loading the folder: ${e.message}`);
+      }
     }
   };
 
@@ -404,7 +462,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-dvh bg-slate-900 text-slate-100 overflow-hidden">
+    <div className={`flex h-dvh bg-slate-900 text-slate-100 overflow-hidden ${theme === 'light' ? 'theme-light' : ''}`}>
       <ConfirmModal 
         isOpen={modalConfig.isOpen}
         title={modalConfig.title}
@@ -453,17 +511,63 @@ function App() {
               <Menu size={24} />
             </button>
             <h1 className="text-base md:text-lg font-semibold text-slate-200 truncate">
-               {!isFileLoaded ? 'ホーム' : 
+               {!isFileLoaded ? t.home : 
                 currentView === 'BROWSE' && activeTable ? `${activeTable}` : 
-                currentView === 'SQL' ? 'SQL Editor' : 
-                currentView === 'AI' ? 'AI Assistant' : 'SQL Query 例'}
+                currentView === 'SQL' ? t.sqlEditor : 
+                currentView === 'AI' ? t.aiAssistant : t.queryExamples}
             </h1>
+            {isFileLoaded && currentView === 'BROWSE' && (
+               <span className="text-[10px] md:text-xs text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-700 whitespace-nowrap ml-2">
+                 {t.doubleClickToEdit}
+               </span>
+            )}
           </div>
-          {isFileLoaded && currentView === 'BROWSE' && (
-             <span className="text-[10px] md:text-xs text-slate-500 bg-slate-900 px-2 py-1 rounded border border-slate-700 whitespace-nowrap ml-2">
-               ダブルクリックで編集
-             </span>
-          )}
+          
+          {/* Header Theme Switcher Switch & Language Switcher */}
+          <div className="flex items-center gap-2 select-none">
+            {/* Language Segmented Control */}
+            <div className="flex items-center p-0.5 rounded-lg bg-slate-900/50 border border-slate-700/60 shadow-inner theme-lang-pill">
+              <button
+                onClick={() => setLang('ja')}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                  lang === 'ja'
+                    ? 'bg-slate-700 text-white shadow-sm theme-lang-active'
+                    : 'text-slate-400 hover:text-slate-200 theme-lang-inactive'
+                }`}
+              >
+                JP
+              </button>
+              <button
+                onClick={() => setLang('en')}
+                className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                  lang === 'en'
+                    ? 'bg-slate-700 text-white shadow-sm theme-lang-active'
+                    : 'text-slate-400 hover:text-slate-200 theme-lang-inactive'
+                }`}
+              >
+                EN
+              </button>
+            </div>
+
+            {/* Theme Switcher Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-1.5 md:p-2 rounded-lg bg-slate-900/40 border border-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs font-semibold shadow-inner"
+              title={theme === 'dark' ? t.switchLight : t.switchDark}
+            >
+              {theme === 'dark' ? (
+                <>
+                  <Sun size={15} className="text-amber-400" />
+                  <span className="hidden sm:inline">{t.lightMode}</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={15} className="text-indigo-400" />
+                  <span className="hidden sm:inline">{t.darkMode}</span>
+                </>
+              )}
+            </button>
+          </div>
         </header>
 
         {/* Main Content Area */}
@@ -485,7 +589,7 @@ function App() {
                   {executionTime !== null && (
                     <div className="flex justify-end mb-2 px-1">
                       <span className="text-xs text-slate-400 font-mono">
-                        実行時間: {executionTime.toFixed(1)}ms
+                        {t.executionTime}: {executionTime.toFixed(1)}ms
                       </span>
                     </div>
                   )}
@@ -515,10 +619,10 @@ function App() {
                   </div>
                   <div className="flex-1 p-2 md:p-4 bg-slate-900 overflow-hidden border-t border-slate-800 flex flex-col">
                      <div className="flex items-center justify-between mb-2 px-1 shrink-0">
-                        <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Results</div>
+                        <div className="text-xs text-slate-500 uppercase tracking-wider font-semibold">{t.resultsTitle}</div>
                         {executionTime !== null && (
                           <div className="text-xs text-slate-400 font-mono">
-                            実行時間: {executionTime.toFixed(1)}ms
+                            {t.executionTime}: {executionTime.toFixed(1)}ms
                           </div>
                         )}
                      </div>

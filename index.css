@@ -1,5 +1,5 @@
 /* 
-  プレビュー環境（CDN）では @tailwind ディレクティブは機能しません。
+  プレビュー環境（CDN）では @tailwind ディレ'ティブは機能しません。
   ビルド時（npm run build）には tailwind.config.js が参照されます。
 */
 
@@ -15,3 +15,258 @@ body {
   color: #292524; /* stone-800 */
   background-color: #fafaf9; /* stone-50 */
 }
+
+/* ==========================================================================
+   Light Mode Custom Stylesheet
+   ========================================================================== */
+
+/* Outer app container in light mode */
+.theme-light {
+  background-color: #f8fafc !important; /* slate-50 */
+  color: #0f172a !important; /* slate-900 */
+}
+
+/* Backgrounds (Primary & Secondary layout blocks) */
+.theme-light main,
+.theme-light .bg-slate-900 {
+  background-color: #f1f5f9 !important; /* slate-100 */
+  color: #0f172a !important;
+}
+
+.theme-light header,
+.theme-light .bg-slate-800 {
+  background-color: #ffffff !important; /* white */
+  border-color: #e2e8f0 !important; /* slate-200 */
+  color: #0f172a !important;
+}
+
+.theme-light .border-slate-800,
+.theme-light .border-slate-700,
+.theme-light .border-slate-750 {
+  border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+/* Sidebar Specific Styles in Light Mode */
+.theme-light .fixed.bg-slate-900,
+.theme-light div[class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+  border-right-color: #e2e8f0 !important;
+}
+
+.theme-light .text-slate-100 {
+  color: #0f172a !important;
+}
+
+.theme-light .text-slate-200,
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4 {
+  color: #1e293b !important;
+}
+
+.theme-light .text-slate-300 {
+  color: #334155 !important;
+}
+
+.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+
+.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Sidebar navigation buttons */
+.theme-light button.text-slate-300:hover,
+.theme-light button.text-slate-400:hover,
+.theme-light nav button:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.theme-light .bg-slate-800\/20,
+.theme-light .bg-slate-800\/30 {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Code Editor Component in Light Mode */
+.theme-light .bg-slate-950,
+.theme-light .bg-slate-950\/40,
+.theme-light .bg-slate-950\/60,
+.theme-light .bg-slate-950\/80 {
+  background-color: #f8fafc !important; /* very soft slate background */
+  border-color: #cbd5e1 !important;
+}
+
+/* Dynamic Editor input overlays & Caret spacing */
+.theme-light textarea.absolute, 
+.theme-light pre.absolute {
+  color: #0f172a !important;
+  caret-color: #0f172a !important;
+}
+
+.theme-light pre span {
+  /* Retain bright syntax colors but adjust if they contrast poorly on light background */
+}
+
+.theme-light textarea {
+  color: #0f172a !important;
+}
+
+/* Completion/Suggestions box */
+.theme-light div[class*="bg-slate-950"][class*="border-slate-800"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+}
+
+.theme-light div[class*="bg-slate-900/80"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Table results overrides */
+.theme-light table {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.theme-light thead th,
+.theme-light th {
+  background-color: #f1f5f9 !important;
+  color: #1e293b !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light td {
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+.theme-light tr {
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light tr:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Modal overlays and cards */
+.theme-light .bg-slate-900\/80,
+.theme-light .bg-slate-900\/60,
+.theme-light .bg-slate-900\/40 {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Active tab state buttons in Browse list */
+.theme-light .bg-slate-800.text-white {
+  background-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* AI Assistant section bubble components */
+.theme-light .bg-purple-950\/30,
+.theme-light .bg-purple-900\/20 {
+  background-color: #f3e8ff !important;
+  border-color: #e9d5ff !important;
+}
+
+.theme-light .text-purple-300 {
+  color: #6b21a8 !important;
+}
+
+.theme-light .text-purple-400 {
+  color: #7e22ce !important;
+}
+
+.theme-light .text-indigo-300 {
+  color: #3730a3 !important;
+}
+
+.theme-light .text-indigo-400 {
+  color: #4338ca !important;
+}
+
+/* Join analyzer specific overrides */
+.theme-light .bg-indigo-950\/40,
+.theme-light .bg-indigo-900\/20 {
+  background-color: #e0e7ff !important;
+  border-color: #c7d2fe !important;
+}
+
+.theme-light .bg-slate-800\/80 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Cards on Home screen / Home illustration area */
+.theme-light .bg-slate-800 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light .bg-slate-800:hover {
+  background-color: #f8fafc !important;
+  border-color: #3b82f6 !important;
+}
+
+.theme-light .shadow-xl {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
+
+.theme-light .bg-slate-900\/40 {
+  background-color: #f1f5f9 !important;
+}
+
+/* Query Examples Cards in Light Mode */
+.theme-light .bg-slate-850 {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light .bg-slate-850:hover {
+  background-color: #f8fafc !important;
+  border-color: #06b6d4 !important;
+}
+
+/* Custom error block container overrides */
+.theme-light .bg-red-950\/20 {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+}
+
+.theme-light .text-red-200 {
+  color: #991b1b !important;
+}
+
+.theme-light .text-red-400 {
+  color: #dc2626 !important;
+}
+
+.theme-light .bg-red-950\/40 {
+  background-color: #fee2e2 !important;
+}
+
+/* Language selector segmented control customization */
+.theme-light .theme-lang-pill {
+  background-color: #f1f5f9 !important; /* slate-100 */
+  border-color: #cbd5e1 !important; /* slate-300 */
+}
+
+.theme-light .theme-lang-active {
+  background-color: #ffffff !important; /* white */
+  color: #0f172a !important; /* slate-900 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.theme-light .theme-lang-inactive {
+  color: #64748b !important; /* slate-500 */
+}
+
+.theme-light .theme-lang-inactive:hover {
+  color: #0f172a !important;
+}
+
