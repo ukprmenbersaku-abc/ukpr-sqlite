@@ -19,7 +19,7 @@ export const translations = {
     noTables: "テーブルが見つかりません",
     createNew: "新規作成",
     downloadFile: "ファイルダウンロード",
-    closeConnection: "接続を閉じる",
+    closeConnection: "ファイルを閉じる",
     openFolder: "フォルダを開く",
     selectMultiFallback: "※代わりに複数ファイルを選択",
     folderSelectTip: "フォルダ内の複数SQLiteを一括で読み込んで結合できるようにします。うまくフォルダが開けない場合はすぐ下の複数ファイル選択や、ホーム上のドラッグ＆ドロップをお試しください",

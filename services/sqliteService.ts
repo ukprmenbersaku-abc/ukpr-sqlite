@@ -164,7 +164,7 @@ export const getTableColumns = (tableName: string): string[] => {
 };
 
 // Modified to include rowid for editing purposes, safely accounting for attached databases
-export const getTableData = (tableName: string, limit: number = 100): QueryResult | null => {
+export const getTableData = (tableName: string, limit: number = 1000000): QueryResult | null => {
   const parts = tableName.split('.');
   let targetTable = `"${tableName}"`;
   if (parts.length > 1) {

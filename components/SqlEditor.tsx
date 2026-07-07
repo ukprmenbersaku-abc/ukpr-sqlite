@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, AlertCircle, ChevronDown, ChevronUp, Shield, Zap, Globe } from 'lucide-react';
 import { SqlErrorDetails } from './SqlErrorDetails.tsx';
+import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface SqlEditorProps {
   initialSql?: string;
@@ -15,6 +16,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
   error,
   getSuggestions
 }) => {
+  const { t } = useLanguage();
   const [sql, setSql] = useState(initialSql);
   const [suggestions, setSuggestions] = useState<{ value: string; type: 'table' | 'column' | 'keyword' }[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -297,7 +299,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
           className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded shadow-sm transition-colors"
         >
           <Play size={16} />
-          <span>実行</span>
+          <span>{t.runSql || 'Run Query'}</span>
         </button>
       </div>
 
