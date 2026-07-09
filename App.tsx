@@ -21,7 +21,8 @@ import {
   insertRow,
   dropTable,
   getTableColumns,
-  attachDatabase
+  attachDatabase,
+  cancelCurrentQuery
 } from './services/sqliteService.ts';
 import { TableInfo, QueryResult, ViewMode } from './types.ts';
 import { Menu, Sun, Moon } from 'lucide-react';
@@ -50,6 +51,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
+  const [isQueryRunning, setIsQueryRunning] = useState(false);
+  const [columnCache, setColumnCache] = useState<Record<string, string[]>>({});
 
   const globalFolderInputRef = useRef<HTMLInputElement>(null);
 
@@ -231,7 +234,7 @@ function App() {
       const buffer = await file.arrayBuffer();
       await loadDatabase(buffer);
       setFileName(file.name);
-      refreshTables();
+      await refreshTables();
       setIsFileLoaded(true);
       setCurrentView('BROWSE');
       setError(null);
@@ -246,7 +249,7 @@ function App() {
     try {
       await createNewDatabase();
       setFileName('new_database.sqlite');
-      refreshTables();
+      await refreshTables();
       setIsFileLoaded(true);
       setCurrentView('SQL');
       setError(null);
@@ -256,9 +259,9 @@ function App() {
     }
   };
 
-  const onDownloadFile = () => {
+  const onDownloadFile = async () => {
     try {
-      const data = exportDatabase();
+      const data = await exportDatabase();
       if (!data) return;
       const blob = new Blob([data as any], { type: 'application/x-sqlite3' });
       const url = URL.createObjectURL(blob);
@@ -306,34 +309,51 @@ function App() {
     closeModal();
   };
 
-  const refreshTables = () => {
-    const t = getTables();
-    setTables(t);
-    // If we have active table, refresh its data, otherwise maybe select first?
-    if (activeTable) {
-      // Check if active table still exists
-      if (t.find(tab => tab.name === activeTable)) {
-         handleSelectTable(activeTable);
+  const refreshTables = async () => {
+    try {
+      const t = await getTables();
+      setTables(t);
+
+      // Warm up columnCache for IntelliSense/suggestions
+      const cache: Record<string, string[]> = {};
+      await Promise.all(t.map(async (table) => {
+        try {
+          const cols = await getTableColumns(table.name);
+          cache[table.name] = cols;
+        } catch (e) {
+          // Silent fallback for empty or error tables
+        }
+      }));
+      setColumnCache(cache);
+
+      // If we have active table, refresh its data, otherwise maybe select first?
+      if (activeTable) {
+        // Check if active table still exists
+        if (t.find(tab => tab.name === activeTable)) {
+           await handleSelectTable(activeTable);
+        } else {
+           setActiveTable(null);
+           setQueryResult(null);
+        }
+      } else if (t.length > 0) {
+        await handleSelectTable(t[0].name);
       } else {
-         setActiveTable(null);
-         setQueryResult(null);
+        setQueryResult(null);
+        setActiveTable(null);
       }
-    } else if (t.length > 0) {
-      handleSelectTable(t[0].name);
-    } else {
-      setQueryResult(null);
-      setActiveTable(null);
+    } catch (err: any) {
+      setError(`テーブル一覧の更新に失敗しました: ${err.message}`);
     }
   };
 
-  const handleSelectTable = (tableName: string) => {
+  const handleSelectTable = async (tableName: string) => {
     setActiveTable(tableName);
     setCurrentView('BROWSE');
     setError(null);
     setIsSidebarOpen(false);
     try {
       const startTime = performance.now();
-      const data = getTableData(tableName);
+      const data = await getTableData(tableName);
       const endTime = performance.now();
       setQueryResult(data);
       setExecutionTime(endTime - startTime);
@@ -355,15 +375,15 @@ function App() {
     });
   };
 
-  const performDeleteTable = (tableName: string) => {
+  const performDeleteTable = async (tableName: string) => {
     try {
-      dropTable(tableName);
+      await dropTable(tableName);
       // Explicitly reset active table if we deleted it
       if (activeTable === tableName) {
         setActiveTable(null);
         setQueryResult(null);
       }
-      refreshTables();
+      await refreshTables();
       closeModal();
     } catch (e: any) {
       setError(`テーブル削除エラー: ${e.message}`);
@@ -371,34 +391,34 @@ function App() {
     }
   };
 
-  const handleUpdateCell = (rowId: number, column: string, value: any) => {
+  const handleUpdateCell = async (rowId: number, column: string, value: any) => {
     if (!activeTable) return;
     try {
-      updateCellValue(activeTable, rowId, column, value);
-      const data = getTableData(activeTable);
+      await updateCellValue(activeTable, rowId, column, value);
+      const data = await getTableData(activeTable);
       setQueryResult(data);
     } catch (e: any) {
       setError(`更新エラー: ${e.message}`);
     }
   };
 
-  const handleDeleteRow = (rowId: number) => {
+  const handleDeleteRow = async (rowId: number) => {
     if (!activeTable) return;
     if (!window.confirm("この行を削除しますか？")) return;
     try {
-      deleteRow(activeTable, rowId);
-      const data = getTableData(activeTable);
+      await deleteRow(activeTable, rowId);
+      const data = await getTableData(activeTable);
       setQueryResult(data);
     } catch (e: any) {
       setError(`削除エラー: ${e.message}`);
     }
   };
 
-  const handleAddRow = (data: Record<string, any>) => {
+  const handleAddRow = async (data: Record<string, any>) => {
     if (!activeTable) return;
     try {
-      insertRow(activeTable, data);
-      const res = getTableData(activeTable);
+      await insertRow(activeTable, data);
+      const res = await getTableData(activeTable);
       setQueryResult(res);
     } catch (e: any) {
       setError(`追加エラー: ${e.message}`);
@@ -410,37 +430,48 @@ function App() {
     setIsSidebarOpen(false);
   }
 
-  const handleExecuteSql = (sql: string) => {
+  const handleExecuteSql = async (sql: string) => {
     setError(null);
     setEditorSql(sql);
+    setIsQueryRunning(true);
     try {
       const startTime = performance.now();
-      const res = executeQuery(sql);
+      const res = await executeQuery(sql);
       const endTime = performance.now();
       setQueryResult(res);
       setExecutionTime(endTime - startTime);
       // If it was a modification query, refresh tables list
       if (sql.trim().toUpperCase().match(/^(CREATE|DROP|ALTER|INSERT|UPDATE|DELETE)/)) {
-        const t = getTables();
-        setTables(t);
+        await refreshTables();
       }
     } catch (e: any) {
       setError(e.message);
       setQueryResult(null);
       setExecutionTime(null);
+    } finally {
+      setIsQueryRunning(false);
+    }
+  };
+
+  const handleCancelSql = async () => {
+    try {
+      setError(lang === 'ja' ? 'ユーザーによってクエリの実行が停止されました。' : 'Query execution stopped by user.');
+      await cancelCurrentQuery();
+      setQueryResult(null);
+      setExecutionTime(null);
+      await refreshTables();
+    } catch (e: any) {
+      console.error("Disaster recovery failed during cancellation:", e);
+    } finally {
+      setIsQueryRunning(false);
     }
   };
 
   const handleGetSuggestions = () => {
     const tableNames = tables.map(t => t.name);
     const columnNames: string[] = [];
-    tableNames.forEach(tName => {
-      try {
-        const cols = getTableColumns(tName);
-        columnNames.push(...cols);
-      } catch (e) {
-        // ignore
-      }
+    Object.values(columnCache).forEach(cols => {
+      columnNames.push(...cols);
     });
     // Remove duplicates
     const uniqueColumns = Array.from(new Set(columnNames));
@@ -615,6 +646,8 @@ function App() {
                       onExecute={handleExecuteSql} 
                       error={error}
                       getSuggestions={handleGetSuggestions}
+                      isExecuting={isQueryRunning}
+                      onCancel={handleCancelSql}
                     />
                   </div>
                   <div className="flex-1 p-2 md:p-4 bg-slate-900 overflow-hidden border-t border-slate-800 flex flex-col">

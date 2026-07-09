@@ -1,225 +1,191 @@
-import { QueryResult, TableInfo, SqlJsDatabase } from '../types.ts';
+import { QueryResult, TableInfo } from '../types.ts';
 
-let db: SqlJsDatabase | null = null;
-let SQL: any = null;
+let worker: Worker | null = null;
+let msgId = 0;
+const pendingPromises = new Map<number, { resolve: (val: any) => void; reject: (err: any) => void }>();
 
-export const initSqlJs = async () => {
-  if (SQL) return;
-  
-  // @ts-ignore - window.initSqlJs is loaded from CDN in index.html
-  if (typeof window.initSqlJs !== 'function') {
-    throw new Error('SQL.js is not loaded correctly.');
+// Locally tracked database state copies (to support safe termination & state recovery on demand)
+let currentDbBackup: ArrayBuffer | null = null;
+const attachedDbsBackup: { name: string; buffer: ArrayBuffer }[] = [];
+
+// Initialize or retrieve the active Worker
+export const getWorker = (): Worker => {
+  if (!worker) {
+    // Instantiate background Worker with Vite ESM syntax
+    worker = new Worker(new URL('./dbWorker.ts', import.meta.url), { type: 'module' });
+    
+    worker.onmessage = (e: MessageEvent) => {
+      const { id, success, result, error } = e.data;
+      const promise = pendingPromises.get(id);
+      if (promise) {
+        pendingPromises.delete(id);
+        if (success) {
+          promise.resolve(result);
+        } else {
+          promise.reject(new Error(error));
+        }
+      }
+    };
+
+    worker.onerror = (err) => {
+      console.error("SQLite Background Worker encountered an error:", err);
+    };
   }
+  return worker;
+};
 
-  // @ts-ignore
-  SQL = await window.initSqlJs({
-    locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
+// Internal message router helper
+const callWorker = <T>(action: string, payload?: any): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const activeWorker = getWorker();
+      const id = ++msgId;
+      pendingPromises.set(id, { resolve, reject });
+      activeWorker.postMessage({ id, action, payload });
+    } catch (err) {
+      reject(err);
+    }
   });
 };
 
-export const loadDatabase = async (fileBuffer: ArrayBuffer): Promise<void> => {
-  await initSqlJs();
-  if (db) {
-    db.close();
+// Quietly export and cache DB state for recovery/export scenarios
+const syncBackup = async () => {
+  try {
+    const buffer = await callWorker<ArrayBuffer>('export');
+    currentDbBackup = buffer;
+  } catch (e) {
+    // Graceful bypass if database is empty/not ready
   }
-  db = new SQL.Database(new Uint8Array(fileBuffer));
+};
+
+export const initSqlJs = async (): Promise<void> => {
+  await callWorker<void>('init');
+};
+
+export const loadDatabase = async (fileBuffer: ArrayBuffer): Promise<void> => {
+  // Save detached arraybuffer copy for background hot backups
+  currentDbBackup = fileBuffer.slice(0);
+  attachedDbsBackup.length = 0;
+  await callWorker<void>('load', { buffer: fileBuffer });
 };
 
 export const createNewDatabase = async (): Promise<void> => {
-  await initSqlJs();
-  if (db) {
-    db.close();
-  }
-  db = new SQL.Database();
+  currentDbBackup = null;
+  attachedDbsBackup.length = 0;
+  await callWorker<void>('create_new');
+  await syncBackup();
 };
 
-export const exportDatabase = (): Uint8Array | null => {
-  if (!db) return null;
-  return db.export();
+export const exportDatabase = async (): Promise<Uint8Array | null> => {
+  try {
+    const buffer = await callWorker<ArrayBuffer>('export');
+    currentDbBackup = buffer;
+    return new Uint8Array(buffer);
+  } catch (e) {
+    return null;
+  }
 };
 
 export const closeDatabase = (): void => {
-  if (db) {
-    db.close();
-    db = null;
+  currentDbBackup = null;
+  attachedDbsBackup.length = 0;
+  if (worker) {
+    worker.terminate();
+    worker = null;
   }
+  pendingPromises.clear();
 };
 
-export const executeQuery = (sql: string): QueryResult | null => {
-  if (!db) throw new Error("Database not initialized");
-  try {
-    const results = db.exec(sql);
-    if (results.length === 0) return null;
-    return {
-      columns: results[0].columns,
-      values: results[0].values
-    };
-  } catch (err: any) {
-    throw new Error(err.message);
+export const executeQuery = async (sql: string): Promise<QueryResult | null> => {
+  const result = await callWorker<QueryResult | null>('execute', { sql });
+  const lowerSql = sql.trim().toLowerCase();
+  // If editing schemas or executing transactional queries, sync backup
+  if (
+    lowerSql.startsWith('insert') || 
+    lowerSql.startsWith('update') || 
+    lowerSql.startsWith('delete') || 
+    lowerSql.startsWith('drop') || 
+    lowerSql.startsWith('create') || 
+    lowerSql.startsWith('alter')
+  ) {
+    await syncBackup();
   }
+  return result;
 };
 
 export const attachDatabase = async (name: string, buffer: ArrayBuffer): Promise<string> => {
-  await initSqlJs();
-  if (!db) {
-    db = new SQL.Database();
-  }
-  
-  // Clean alias name to fit SQLite identifier guidelines (no dots, alphanumeric + underscores only)
-  const aliasName = name.replace(/\.(sqlite3|sqlite|db)$/i, '').replace(/[^a-zA-Z0-9_]/g, '_');
-  const fileName = `/db_${aliasName}.db`;
-
-  try {
-    // Delete if existing inside SQLite Emscripten FS
-    try {
-      if (SQL.FS) {
-        SQL.FS.unlink(fileName);
-      }
-    } catch(e) {}
-
-    if (SQL.FS && typeof SQL.FS.writeFile === 'function') {
-      SQL.FS.writeFile(fileName, new Uint8Array(buffer));
-    } else if (SQL.FS && typeof SQL.FS.createDataFile === 'function') {
-      SQL.FS.createDataFile('/', `db_${aliasName}.db`, new Uint8Array(buffer), true, true);
-    } else {
-      throw new Error("Virtual File System is inaccessible in SQL.js.");
-    }
-
-    if (!db) {
-      throw new Error("Database not initialized");
-    }
-    db.run(`ATTACH DATABASE '${fileName}' AS ${aliasName}`);
-    return aliasName;
-  } catch (err: any) {
-    console.error("Failed to attach database:", err);
-    throw new Error(`Failed to attach ${name}: ${err.message}`);
-  }
+  const alias = await callWorker<string>('attach', { name, buffer });
+  attachedDbsBackup.push({ name, buffer: buffer.slice(0) });
+  await syncBackup();
+  return alias;
 };
 
-export const getTables = (): TableInfo[] => {
-  if (!db) return [];
-  const tables: TableInfo[] = [];
-
-  try {
-    const dbsResult = db.exec("PRAGMA database_list");
-    if (dbsResult && dbsResult.length > 0) {
-      const dbRows = dbsResult[0].values;
-      for (const row of dbRows) {
-        const dbName = row[1] as string; // 'main', 'temp', or attached alias
-        if (dbName === 'temp') continue;
-
-        try {
-          const masterTable = dbName === 'main' ? 'sqlite_master' : `"${dbName}".sqlite_master`;
-          const query = `SELECT name, sql FROM ${masterTable} WHERE type='table' AND name NOT LIKE 'sqlite_%'`;
-          const results = db.exec(query);
-          if (results && results.length > 0) {
-            results[0].values.forEach((valRow: any[]) => {
-              const tableName = valRow[0] as string;
-              const schema = valRow[1] as string;
-              const displayName = dbName === 'main' ? tableName : `${dbName}.${tableName}`;
-              tables.push({
-                name: displayName,
-                schema: schema || `-- No schema available for ${displayName}`
-              });
-            });
-          }
-        } catch (e) {
-          console.error(`Error querying master table for database '${dbName}':`, e);
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Error retrieving comprehensive tables list, falling back to main:", err);
-    const result = executeQuery("SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
-    if (result) {
-      result.values.forEach((row: any[]) => {
-        tables.push({
-          name: row[0] as string,
-          schema: row[1] as string
-        });
-      });
-    }
-  }
-
-  return tables;
+export const getTables = async (): Promise<TableInfo[]> => {
+  return callWorker<TableInfo[]>('get_tables');
 };
 
-export const getTableColumns = (tableName: string): string[] => {
-  if (!db) return [];
-  try {
-    const parts = tableName.split('.');
-    let query = `PRAGMA table_info("${tableName}")`;
-    if (parts.length > 1) {
-      const dbAlias = parts[0];
-      const realTableName = parts.slice(1).join('.');
-      query = `PRAGMA "${dbAlias}".table_info("${realTableName}")`;
-    }
-    const results = db.exec(query);
-    if (results.length === 0) return [];
-    return results[0].values.map((row: any[]) => row[1] as string);
-  } catch (err) {
-    console.error("PRAGMA error", err);
-    return [];
-  }
+export const getTableColumns = async (tableName: string): Promise<string[]> => {
+  return callWorker<string[]>('get_columns', { tableName });
 };
 
-// Modified to include rowid for editing purposes, safely accounting for attached databases
-export const getTableData = (tableName: string, limit: number = 1000000): QueryResult | null => {
-  const parts = tableName.split('.');
-  let targetTable = `"${tableName}"`;
-  if (parts.length > 1) {
-    const dbAlias = parts[0];
-    const realTableName = parts.slice(1).join('.');
-    targetTable = `"${dbAlias}"."${realTableName}"`;
-  }
-
-  try {
-    return executeQuery(`SELECT rowid, * FROM ${targetTable} LIMIT ${limit}`);
-  } catch (err) {
-    // Fallback if rowid is not supported/accessible or attached table without rowid
-    return executeQuery(`SELECT * FROM ${targetTable} LIMIT ${limit}`);
-  }
+export const getTableData = async (tableName: string, limit: number = 1000000): Promise<QueryResult | null> => {
+  return callWorker<QueryResult | null>('get_table_data', { tableName, limit });
 };
 
-export const getDatabaseSchema = (): string => {
-  const tables = getTables();
+export const getDatabaseSchema = async (): Promise<string> => {
+  const tables = await getTables();
   return tables.map(t => t.schema).join(";\n");
 };
 
 // --- CRUD Operations ---
 
-export const updateCellValue = (tableName: string, rowId: number, column: string, value: any): void => {
-  if (!db) throw new Error("Database not initialized");
-  // Simple parameter binding isn't directly exposed in the simplified db.exec helper, 
-  // so we use db.prepare or careful string manipulation. 
-  // For SQL.js simplified usage, binding via prepare is safer.
-  
-  const stmt = db.prepare(`UPDATE "${tableName}" SET "${column}" = ? WHERE rowid = ?`);
-  stmt.run([value, rowId]);
-  stmt.free();
+export const updateCellValue = async (tableName: string, rowId: number, column: string, value: any): Promise<void> => {
+  await callWorker<void>('update_cell', { tableName, rowId, column, value });
+  await syncBackup();
 };
 
-export const deleteRow = (tableName: string, rowId: number): void => {
-  if (!db) throw new Error("Database not initialized");
-  const stmt = db.prepare(`DELETE FROM "${tableName}" WHERE rowid = ?`);
-  stmt.run([rowId]);
-  stmt.free();
+export const deleteRow = async (tableName: string, rowId: number): Promise<void> => {
+  await callWorker<void>('delete_row', { tableName, rowId });
+  await syncBackup();
 };
 
-export const insertRow = (tableName: string, rowData: Record<string, any>): void => {
-  if (!db) throw new Error("Database not initialized");
-  const columns = Object.keys(rowData);
-  const values = Object.values(rowData);
-  const placeholders = values.map(() => '?').join(',');
-  const quotedColumns = columns.map(c => `"${c}"`).join(',');
-
-  const sql = `INSERT INTO "${tableName}" (${quotedColumns}) VALUES (${placeholders})`;
-  const stmt = db.prepare(sql);
-  stmt.run(values);
-  stmt.free();
+export const insertRow = async (tableName: string, rowData: Record<string, any>): Promise<void> => {
+  await callWorker<void>('insert_row', { tableName, rowData });
+  await syncBackup();
 };
 
-export const dropTable = (tableName: string): void => {
-  if (!db) throw new Error("Database not initialized");
-  db.run(`DROP TABLE "${tableName}"`);
+export const dropTable = async (tableName: string): Promise<void> => {
+  await callWorker<void>('drop_table', { tableName });
+  await syncBackup();
+};
+
+// --- KILL AND INSTANT DISASTER RECOVERY ---
+export const cancelCurrentQuery = async (): Promise<void> => {
+  if (!worker) return;
+
+  // 1. Force kill the heavy worker process
+  worker.terminate();
+  worker = null;
+
+  // 2. Clear out waiting promises with failure to let UI catch
+  for (const [id, promise] of pendingPromises.entries()) {
+    promise.reject(new Error("Query was stopped by user."));
+  }
+  pendingPromises.clear();
+
+  // 3. Spin up a brand new background thread worker
+  const newWorker = getWorker();
+  await callWorker<void>('init');
+
+  // 4. Hot restore database contents
+  if (currentDbBackup) {
+    await callWorker<void>('load', { buffer: currentDbBackup });
+  } else {
+    await callWorker<void>('create_new');
+  }
+
+  // 5. Hot restore attachment databases
+  for (const attached of attachedDbsBackup) {
+    await callWorker<string>('attach', { name: attached.name, buffer: attached.buffer });
+  }
 };

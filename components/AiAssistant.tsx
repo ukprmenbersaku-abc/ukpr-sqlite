@@ -52,7 +52,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
     setError(null);
 
     try {
-      const schema = getDatabaseSchema();
+      const schema = await getDatabaseSchema();
       const sql = await generateSqlFromPrompt(apiKey, schema, prompt);
       onSqlGenerated(sql);
     } catch (err: any) {

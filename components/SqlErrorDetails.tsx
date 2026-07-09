@@ -97,7 +97,7 @@ export const SqlErrorDetails: React.FC<SqlErrorDetailsProps> = ({
     setRepairError(null);
 
     try {
-      const schema = getDatabaseSchema();
+      const schema = await getDatabaseSchema();
       const repaired = await repairSqlWithError(curKey, schema, badSql, error);
       onRepairSuccess(repaired);
     } catch (err: any) {

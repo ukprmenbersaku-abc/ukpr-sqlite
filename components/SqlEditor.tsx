@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, AlertCircle, ChevronDown, ChevronUp, Shield, Zap, Globe } from 'lucide-react';
+import { Play, Square, AlertCircle, ChevronDown, ChevronUp, Shield, Zap, Globe } from 'lucide-react';
 import { SqlErrorDetails } from './SqlErrorDetails.tsx';
 import { useLanguage } from '../utils/LanguageContext.tsx';
 
@@ -8,15 +8,19 @@ interface SqlEditorProps {
   onExecute: (sql: string) => void;
   error?: string | null;
   getSuggestions: () => { tables: string[]; columns: string[] };
+  isExecuting?: boolean;
+  onCancel?: () => void;
 }
 
 export const SqlEditor: React.FC<SqlEditorProps> = ({ 
   initialSql = '', 
   onExecute, 
   error,
-  getSuggestions
+  getSuggestions,
+  isExecuting = false,
+  onCancel
 }) => {
-  const { t } = useLanguage();
+  const { lang, t } = useLanguage();
   const [sql, setSql] = useState(initialSql);
   const [suggestions, setSuggestions] = useState<{ value: string; type: 'table' | 'column' | 'keyword' }[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -294,13 +298,25 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
     <div className="flex flex-col h-full bg-slate-900 border-b border-slate-700">
       <div className="flex items-center justify-between p-2 bg-slate-800 border-b border-slate-700 select-none">
         <span className="text-xs font-mono text-slate-400 ml-2">SQL Editor</span>
-        <button
-          onClick={() => onExecute(sql)}
-          className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded shadow-sm transition-colors"
-        >
-          <Play size={16} />
-          <span>{t.runSql || 'Run Query'}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {isExecuting ? (
+            <button
+              onClick={onCancel}
+              className="flex items-center gap-2 px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm font-medium rounded shadow-sm transition-all animate-pulse"
+            >
+              <Square size={12} fill="currentColor" />
+              <span>{lang === 'ja' ? 'クエリ停止' : 'Stop Query'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onExecute(sql)}
+              className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 text-white text-sm font-medium rounded shadow-sm transition-colors"
+            >
+              <Play size={16} />
+              <span>{t.runSql || 'Run Query'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div ref={containerRef} className="flex-1 relative min-h-[150px] overflow-hidden">

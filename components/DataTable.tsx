@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { QueryResult } from '../types.ts';
-import { Edit2, Trash2, Check, X, Plus, Save, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Edit2, Trash2, Check, X, Plus, Save, Search, Zap } from 'lucide-react';
 import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface DataTableProps {
@@ -24,10 +24,8 @@ export const DataTable: React.FC<DataTableProps> = ({
 }) => {
   const { lang, t } = useLanguage();
 
-  // Search & Pagination States
+  // Search Filter State (No pagination state is needed anymore)
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [pageSize, setPageSize] = useState<number>(50);
-  const [currentPage, setCurrentPage] = useState<number>(1);
   
   // Virtual Scrolling States
   const [scrollTop, setScrollTop] = useState<number>(0);
@@ -42,9 +40,8 @@ export const DataTable: React.FC<DataTableProps> = ({
   const [editingCell, setEditingCell] = useState<{rowId: number, col: string} | null>(null);
   const [editValue, setEditValue] = useState<string>("");
 
-  // Reset pagination/scroll on table or dataset changes
+  // Reset states on table or dataset changes
   useEffect(() => {
-    setCurrentPage(1);
     setSearchQuery("");
     setIsAdding(false);
     setEditingCell(null);
@@ -54,20 +51,20 @@ export const DataTable: React.FC<DataTableProps> = ({
     }
   }, [tableName, data]);
 
-  // Reset scroll on page/filter changes
+  // Reset scroll on filter changes
   useEffect(() => {
     setScrollTop(0);
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTop = 0;
     }
-  }, [currentPage, pageSize, searchQuery]);
+  }, [searchQuery]);
 
-  // Capture actual container height on paginated data load or mount
+  // Capture actual container height on data load or mount
   useEffect(() => {
     if (scrollContainerRef.current) {
       setContainerHeight(scrollContainerRef.current.clientHeight || 450);
     }
-  }, [data, currentPage, pageSize]);
+  }, [data]);
 
   if (!data || data.columns.length === 0) {
     return (
@@ -94,26 +91,17 @@ export const DataTable: React.FC<DataTableProps> = ({
     });
   }, [data.values, searchQuery, hasRowId]);
 
-  // 2. Pagination Calculations
-  const totalRows = filteredValues.length;
-  const maxPage = Math.ceil(totalRows / pageSize);
-  const activePage = Math.min(currentPage, maxPage || 1);
-
-  const paginatedValues = useMemo(() => {
-    const startIdx = (activePage - 1) * pageSize;
-    return filteredValues.slice(startIdx, startIdx + pageSize);
-  }, [filteredValues, activePage, pageSize]);
-
-  // 3. Virtual Scroll calculations
+  // 2. Virtual Scroll calculations over ALL filtered items directly (Zero page limit)
   const rowHeight = 38; // px per row (exact text height + padding)
-  const totalItems = paginatedValues.length;
+  const totalItems = filteredValues.length;
 
-  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - 8);
-  const endIndex = Math.min(totalItems, Math.floor((scrollTop + containerHeight) / rowHeight) + 12);
+  // Render buffer of 15 rows above/below visible window for smooth inertial scrolling
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowHeight) - 15);
+  const endIndex = Math.min(totalItems, Math.floor((scrollTop + containerHeight) / rowHeight) + 20);
 
   const visibleValues = useMemo(() => {
-    return paginatedValues.slice(startIndex, endIndex);
-  }, [paginatedValues, startIndex, endIndex]);
+    return filteredValues.slice(startIndex, endIndex);
+  }, [filteredValues, startIndex, endIndex]);
 
   const topSpacerHeight = startIndex * rowHeight;
   const bottomSpacerHeight = Math.max(0, (totalItems - endIndex) * rowHeight);
@@ -160,19 +148,13 @@ export const DataTable: React.FC<DataTableProps> = ({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t.searchPlaceholder || "Search in table..."}
             className="w-full sm:w-72 bg-slate-950 border border-slate-700 rounded pl-8 pr-8 py-1.5 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-xs font-sans"
           />
           {searchQuery && (
             <button 
-              onClick={() => {
-                setSearchQuery('');
-                setCurrentPage(1);
-              }}
+              onClick={() => setSearchQuery('')}
               className="absolute right-2.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-full p-0.5"
               title="Clear search"
             >
@@ -184,9 +166,9 @@ export const DataTable: React.FC<DataTableProps> = ({
         <div className="flex items-center gap-4 text-slate-400 font-sans">
           <div>
             {lang === 'ja' ? (
-              <span>全 <strong className="text-slate-200 font-mono text-sm font-semibold">{totalRows}</strong> 件を表示中 {searchQuery && `(元のデータ: ${data.values.length}件)`}</span>
+              <span>全 <strong className="text-slate-200 font-mono text-sm font-semibold">{totalItems}</strong> 件を表示中 {searchQuery && `(元のデータ: ${data.values.length}件)`}</span>
             ) : (
-              <span>Showing <strong className="text-slate-200 font-mono text-sm font-semibold">{totalRows}</strong> matching rows {searchQuery && `(total: ${data.values.length})`}</span>
+              <span>Showing <strong className="text-slate-200 font-mono text-sm font-semibold">{totalItems}</strong> matching rows {searchQuery && `(total: ${data.values.length})`}</span>
             )}
           </div>
         </div>
@@ -196,7 +178,7 @@ export const DataTable: React.FC<DataTableProps> = ({
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-auto bg-slate-950"
+        className="flex-1 overflow-auto bg-slate-950 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent"
       >
         <table className="min-w-full text-left text-xs whitespace-nowrap border-collapse relative">
           <thead className="uppercase tracking-wider border-b border-slate-700 bg-slate-800 sticky top-0 z-10 shadow-sm font-sans">
@@ -212,7 +194,7 @@ export const DataTable: React.FC<DataTableProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/80 font-mono">
-            {/* Top Virtual Spacer */}
+            {/* Top Virtual Spacer to keep scrollbar height authentic */}
             {topSpacerHeight > 0 && (
               <tr>
                 <td 
@@ -282,7 +264,7 @@ export const DataTable: React.FC<DataTableProps> = ({
               );
             })}
             
-            {/* Bottom Virtual Spacer */}
+            {/* Bottom Virtual Spacer to keep scrollbar height authentic */}
             {bottomSpacerHeight > 0 && (
               <tr>
                 <td 
@@ -293,7 +275,7 @@ export const DataTable: React.FC<DataTableProps> = ({
             )}
 
             {/* Empty Search Result State */}
-            {totalRows === 0 && (
+            {totalItems === 0 && (
               <tr>
                 <td colSpan={displayColumns.length + (isEditable && hasRowId ? 1 : 0)} className="py-10 text-center text-slate-500 italic bg-slate-950 font-sans">
                   {t.noDataAvailable || "No data available."}
@@ -352,83 +334,18 @@ export const DataTable: React.FC<DataTableProps> = ({
         </table>
       </div>
 
-      {/* Bottom Pagination Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-slate-800 border-t border-slate-700 text-xs shrink-0 select-none font-sans">
-        {/* Page Size Dropdown */}
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400">{t.rowsPerPage || "Rows per page:"}</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="bg-slate-950 border border-slate-700 text-slate-200 rounded px-2 py-1 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-            <option value={200}>200</option>
-            <option value={500}>500</option>
-            <option value={1000}>1000</option>
-            <option value={5000}>5000</option>
-            <option value={1000000}>{lang === 'ja' ? 'すべて (自動分割ロード)' : 'All (Auto chunks)'}</option>
-          </select>
-        </div>
-
-        {/* Dynamic Page Controllers */}
-        {pageSize < 1000000 && (
-          <div className="flex items-center gap-1">
-            <button
-              disabled={activePage === 1}
-              onClick={() => setCurrentPage(1)}
-              className="p-1.5 rounded bg-slate-950 border border-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-950 transition-colors text-slate-300"
-              title="First Page"
-            >
-              <ChevronsLeft size={14} />
-            </button>
-            <button
-              disabled={activePage === 1}
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              className="p-1.5 rounded bg-slate-950 border border-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-950 transition-colors text-slate-300"
-              title="Previous Page"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            
-            <span className="text-slate-300 px-3 font-medium bg-slate-950/60 border border-slate-800 py-1 rounded font-mono">
-              {lang === 'ja' ? (
-                <span>ページ <strong>{activePage}</strong> / {maxPage || 1}</span>
-              ) : (
-                <span>Page <strong>{activePage}</strong> of {maxPage || 1}</span>
-              )}
-            </span>
-
-            <button
-              disabled={activePage >= maxPage}
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, maxPage))}
-              className="p-1.5 rounded bg-slate-950 border border-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-950 transition-colors text-slate-300"
-              title="Next Page"
-            >
-              <ChevronRight size={14} />
-            </button>
-            <button
-              disabled={activePage >= maxPage}
-              onClick={() => setCurrentPage(maxPage)}
-              className="p-1.5 rounded bg-slate-950 border border-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:hover:bg-slate-950 transition-colors text-slate-300"
-              title="Last Page"
-            >
-              <ChevronsRight size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* Info label */}
-        <div className="text-slate-400 font-mono text-[11px]">
-          {totalRows > 0 ? (
+      {/* Simplified Footer - No pagination selectors/pages dropdown to strictly represent "Always All" */}
+      <div className="flex items-center justify-between p-3.5 bg-slate-800 border-t border-slate-700 text-xs shrink-0 select-none font-sans">
+        <span className="text-slate-400 text-[11px] font-mono flex items-center gap-1.5">
+          <Zap size={13} className="text-indigo-400" />
+          <span>{lang === 'ja' ? '仮想ウィンドウ描画により全件シームレス表示中' : 'Virtualized view rendering all rows seamlessly'}</span>
+        </span>
+        <div className="text-slate-300 font-mono text-[11px] font-semibold bg-slate-950 px-2.5 py-1 rounded border border-slate-700/60">
+          {totalItems > 0 ? (
             lang === 'ja' ? (
-              <span>{totalRows}件中 {Math.min((activePage - 1) * pageSize + 1, totalRows)}〜{Math.min(activePage * pageSize, totalRows)}件を表示</span>
+              <span>全 <strong className="text-indigo-400">{totalItems}</strong> 件中 {totalItems} 件を表示</span>
             ) : (
-              <span>Showing {Math.min((activePage - 1) * pageSize + 1, totalRows)} - {Math.min(activePage * pageSize, totalRows)} of {totalRows}</span>
+              <span>Showing all <strong className="text-indigo-400">{totalItems}</strong> of {totalItems} rows</span>
             )
           ) : (
             <span>0 rows</span>

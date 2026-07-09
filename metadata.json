@@ -1,5 +1,8 @@
 {
   "name": "SQLite on Web",
-  "description": "SQLite on Webとはブラウザ上で完結する、インストール不要のSQLiteデータベースの閲覧・編集ツールです。直感的な操作やGemini APIによる自然言語からのSQL生成にも対応しています。",
-  "requestFramePermissions": []
+  "description": "A lightweight, browser-based SQLite editor and visual explorer. Features direct SQLite file loading, interactive data grids (add, edit, delete rows), virtualized table rendering for large datasets, autocomplete SQL console, and a Gemini AI assistant for natural language querying and error repair. Fully supports Japanese language interface / 日本語表示および日本語でのSQL生成・操作にも完全対応しています。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
