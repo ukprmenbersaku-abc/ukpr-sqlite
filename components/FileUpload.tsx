@@ -21,6 +21,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
     const file = event.target.files?.[0];
     if (file) {
       onFileLoaded(file);
+      event.target.value = '';
     }
   };
 
@@ -28,6 +29,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
     const files = Array.from(event.target.files || []);
     if (files.length > 0) {
       onFolderLoaded(files);
+      event.target.value = '';
     }
   };
 
@@ -35,6 +37,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
     const files = Array.from(event.target.files || []);
     if (files.length > 0) {
       onFolderLoaded(files);
+      event.target.value = '';
     }
   };
 
@@ -192,6 +195,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleFileChange} 
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                 accept=".sqlite,.db,.sqlite3" 
                 className="hidden" 
               />
@@ -214,6 +218,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
                   type="file" 
                   ref={directoryInputRef} 
                   onChange={handleDirectoryChange} 
+                  onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                   className="hidden" 
                   {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
                 />
@@ -229,6 +234,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
                   type="file" 
                   ref={multiFileInputRef} 
                   onChange={handleMultiFileChange} 
+                  onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                   multiple 
                   accept=".sqlite,.db,.sqlite3"
                   className="hidden" 

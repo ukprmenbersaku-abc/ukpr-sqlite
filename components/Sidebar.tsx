@@ -117,6 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleFileChange} 
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                 accept=".sqlite,.db,.sqlite3" 
                 className="hidden" 
               />
@@ -133,6 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="file" 
                 ref={directoryInputRef} 
                 onChange={handleDirectoryChange} 
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                 className="hidden" 
                 {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
               />
@@ -149,6 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="file" 
                 ref={multiFileInputRef} 
                 onChange={handleMultiFileChange} 
+                onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                 multiple 
                 accept=".sqlite,.db,.sqlite3"
                 className="hidden" 

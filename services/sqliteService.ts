@@ -1,3 +1,6 @@
+// @ts-ignore
+import DbWorker from './dbWorker?worker';
+
 import { QueryResult, TableInfo } from '../types.ts';
 
 let worker: Worker | null = null;
@@ -11,10 +14,9 @@ const attachedDbsBackup: { name: string; buffer: ArrayBuffer }[] = [];
 // Initialize or retrieve the active Worker
 export const getWorker = (): Worker => {
   if (!worker) {
-    // Instantiate background Worker with Vite ESM syntax
-    worker = new Worker(new URL('./dbWorker.ts', import.meta.url), { type: 'module' });
+    const activeWorker = new DbWorker();
     
-    worker.onmessage = (e: MessageEvent) => {
+    activeWorker.onmessage = (e: MessageEvent) => {
       const { id, success, result, error } = e.data;
       const promise = pendingPromises.get(id);
       if (promise) {
@@ -27,11 +29,13 @@ export const getWorker = (): Worker => {
       }
     };
 
-    worker.onerror = (err) => {
+    activeWorker.onerror = (err: any) => {
       console.error("SQLite Background Worker encountered an error:", err);
     };
+
+    worker = activeWorker;
   }
-  return worker;
+  return worker as Worker;
 };
 
 // Internal message router helper
@@ -86,12 +90,17 @@ export const exportDatabase = async (): Promise<Uint8Array | null> => {
   }
 };
 
-export const closeDatabase = (): void => {
+export const closeDatabase = async (): Promise<void> => {
   currentDbBackup = null;
   attachedDbsBackup.length = 0;
   if (worker) {
-    worker.terminate();
-    worker = null;
+    try {
+      await callWorker<void>('close');
+    } catch (e) {
+      console.warn("Error closing database in worker, terminating worker thread:", e);
+      worker.terminate();
+      worker = null;
+    }
   }
   pendingPromises.clear();
 };

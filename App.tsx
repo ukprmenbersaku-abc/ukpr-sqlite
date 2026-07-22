@@ -22,7 +22,8 @@ import {
   dropTable,
   getTableColumns,
   attachDatabase,
-  cancelCurrentQuery
+  cancelCurrentQuery,
+  initSqlJs
 } from './services/sqliteService.ts';
 import { TableInfo, QueryResult, ViewMode } from './types.ts';
 import { Menu, Sun, Moon } from 'lucide-react';
@@ -153,6 +154,13 @@ function App() {
     }
   };
 
+  // Pre-initialize SQLite background worker and compile WASM
+  useEffect(() => {
+    initSqlJs().catch(err => {
+      console.warn("Pre-initialization of SQLite WASM failed:", err);
+    });
+  }, []);
+
   // Register Keyboard Shortcuts
   useEffect(() => {
     let ctrlKActive = false;
@@ -231,31 +239,44 @@ function App() {
   // Handle file loading
   const onFileLoaded = async (file: File) => {
     try {
+      // Clear previous state completely first
+      setActiveTable(null);
+      setQueryResult(null);
+      setEditorSql('');
+      setError(null);
+      setExecutionTime(null);
+
       const buffer = await file.arrayBuffer();
       await loadDatabase(buffer);
       setFileName(file.name);
       await refreshTables();
       setIsFileLoaded(true);
       setCurrentView('BROWSE');
-      setError(null);
       setIsSidebarOpen(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("ファイルの読み込みに失敗しました。");
+      alert(t.loadFileFailed + (e?.message ? `: ${e.message}` : ''));
     }
   };
 
   const onCreateNew = async () => {
     try {
+      // Clear previous state completely first
+      setActiveTable(null);
+      setQueryResult(null);
+      setEditorSql('');
+      setError(null);
+      setExecutionTime(null);
+
       await createNewDatabase();
       setFileName('new_database.sqlite');
       await refreshTables();
       setIsFileLoaded(true);
       setCurrentView('SQL');
-      setError(null);
       setIsSidebarOpen(false);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      alert(lang === 'ja' ? `新規データベースの作成に失敗しました: ${e.message}` : `Failed to create new database: ${e.message}`);
     }
   };
 
@@ -274,24 +295,24 @@ function App() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error(e);
-      alert('ファイルの保存に失敗しました');
+      alert(t.saveFileFailed);
     }
   };
 
   const onCloseFileRequest = () => {
     setModalConfig({
       isOpen: true,
-      title: 'ファイルを閉じますか？',
-      message: '保存されていない変更は失われる可能性があります。\n現在の作業を終了してホーム画面に戻りますか？',
+      title: t.closeFileTitle,
+      message: t.closeFileMessage,
       isDestructive: true,
-      confirmText: '閉じる',
+      confirmText: t.closeFileConfirmText,
       onConfirm: performCloseFile
     });
   };
 
-  const performCloseFile = () => {
+  const performCloseFile = async () => {
     try {
-      closeDatabase();
+      await closeDatabase();
     } catch (e) {
       console.warn("Database close error:", e);
     }
@@ -367,10 +388,10 @@ function App() {
   const handleDeleteTableRequest = (tableName: string) => {
     setModalConfig({
       isOpen: true,
-      title: 'テーブルの削除',
-      message: `テーブル "${tableName}" を削除してもよろしいですか？\nこの操作は取り消せません。`,
+      title: t.deleteTableTitle,
+      message: t.deleteTableMessage.replace('{tableName}', tableName),
       isDestructive: true,
-      confirmText: '削除する',
+      confirmText: t.deleteTableConfirmText,
       onConfirm: () => performDeleteTable(tableName)
     });
   };
@@ -386,7 +407,7 @@ function App() {
       await refreshTables();
       closeModal();
     } catch (e: any) {
-      setError(`テーブル削除エラー: ${e.message}`);
+      setError(`${t.tableDeleteError}: ${e.message}`);
       closeModal();
     }
   };
@@ -398,19 +419,19 @@ function App() {
       const data = await getTableData(activeTable);
       setQueryResult(data);
     } catch (e: any) {
-      setError(`更新エラー: ${e.message}`);
+      setError(`${t.updateError}: ${e.message}`);
     }
   };
 
   const handleDeleteRow = async (rowId: number) => {
     if (!activeTable) return;
-    if (!window.confirm("この行を削除しますか？")) return;
+    if (!window.confirm(t.deleteRowPrompt)) return;
     try {
       await deleteRow(activeTable, rowId);
       const data = await getTableData(activeTable);
       setQueryResult(data);
     } catch (e: any) {
-      setError(`削除エラー: ${e.message}`);
+      setError(`${t.deleteError}: ${e.message}`);
     }
   };
 
@@ -421,7 +442,7 @@ function App() {
       const res = await getTableData(activeTable);
       setQueryResult(res);
     } catch (e: any) {
-      setError(`追加エラー: ${e.message}`);
+      setError(`${t.insertError}: ${e.message}`);
     }
   };
 
@@ -696,6 +717,7 @@ function App() {
           }
           e.target.value = '';
         }} 
+        onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
         className="hidden" 
         {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
       />

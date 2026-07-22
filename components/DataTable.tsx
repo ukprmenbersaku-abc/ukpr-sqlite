@@ -66,19 +66,12 @@ export const DataTable: React.FC<DataTableProps> = ({
     }
   }, [data]);
 
-  if (!data || data.columns.length === 0) {
-    return (
-      <div className={`flex items-center justify-center h-full text-slate-500 italic ${className}`}>
-        {lang === 'ja' ? 'データがありません' : 'No data available'}
-      </div>
-    );
-  }
-
-  const hasRowId = data.columns[0] === 'rowid';
-  const displayColumns = hasRowId ? data.columns.slice(1) : data.columns;
+  const hasRowId = data?.columns?.[0] === 'rowid';
+  const displayColumns = data?.columns ? (hasRowId ? data.columns.slice(1) : data.columns) : [];
 
   // 1. Client-side Search Filtering
   const filteredValues = useMemo(() => {
+    if (!data?.values) return [];
     if (!searchQuery) return data.values;
     const lowerQuery = searchQuery.toLowerCase();
     
@@ -89,7 +82,7 @@ export const DataTable: React.FC<DataTableProps> = ({
         return String(cell).toLowerCase().includes(lowerQuery);
       });
     });
-  }, [data.values, searchQuery, hasRowId]);
+  }, [data?.values, searchQuery, hasRowId]);
 
   // 2. Virtual Scroll calculations over ALL filtered items directly (Zero page limit)
   const rowHeight = 38; // px per row (exact text height + padding)
@@ -105,6 +98,14 @@ export const DataTable: React.FC<DataTableProps> = ({
 
   const topSpacerHeight = startIndex * rowHeight;
   const bottomSpacerHeight = Math.max(0, (totalItems - endIndex) * rowHeight);
+
+  if (!data || data.columns.length === 0) {
+    return (
+      <div className={`flex items-center justify-center h-full text-slate-500 italic ${className}`}>
+        {lang === 'ja' ? 'データがありません' : 'No data available'}
+      </div>
+    );
+  }
 
   // Handle scroll trigger to update top offset & measurements
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {

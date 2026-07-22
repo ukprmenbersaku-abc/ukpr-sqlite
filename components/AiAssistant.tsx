@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, ArrowRight, Loader2, Key, Settings } from 'lucide-react';
 import { generateSqlFromPrompt } from '../services/geminiService.ts';
 import { getDatabaseSchema } from '../services/sqliteService.ts';
+import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface AiAssistantProps {
   onSqlGenerated: (sql: string) => void;
 }
 
 export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
+  const { lang, t } = useLanguage();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
   };
 
   const handleClearKey = () => {
-    if(window.confirm('APIキーを削除しますか？')) {
+    if(window.confirm(t.aiConfirmApiKeyDelete)) {
       localStorage.removeItem('gemini_api_key');
       setApiKey('');
       setShowKeyInput(true);
@@ -57,7 +59,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
       onSqlGenerated(sql);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'エラーが発生しました');
+      setError(err.message || t.aiErrorOccurred);
     } finally {
       setLoading(false);
     }
@@ -72,10 +74,9 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
               <Key className="text-purple-400" size={32} />
             </div>
           </div>
-          <h2 className="text-xl font-bold text-white text-center mb-2">APIキーの設定</h2>
+          <h2 className="text-xl font-bold text-white text-center mb-2">{t.aiSetApiKeyTitle}</h2>
           <p className="text-slate-400 text-sm text-center mb-6">
-            AIアシスタント機能を使用するには、Google Gemini APIキーが必要です。
-            キーはブラウザ内にのみ保存されます。
+            {t.aiSetApiKeyDesc}
           </p>
           <form onSubmit={handleSaveKey} className="space-y-4">
             <div>
@@ -93,7 +94,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
               disabled={!apiKey.trim()}
               className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
             >
-              設定を保存して開始
+              {t.aiSaveKeyAndStartBtn}
             </button>
             <div className="text-center mt-4">
               <a 
@@ -102,7 +103,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
                 rel="noreferrer"
                 className="text-xs text-purple-400 hover:text-purple-300 underline"
               >
-                APIキーを取得する (Google AI Studio)
+                {t.aiGetKeyBtn}
               </a>
             </div>
           </form>
@@ -117,7 +118,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
         <button 
           onClick={handleClearKey}
           className="p-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors"
-          title="APIキーを変更"
+          title={lang === 'ja' ? 'APIキーを変更' : 'Change API Key'}
         >
           <Settings size={20} />
         </button>
@@ -128,9 +129,9 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
           <div className="inline-flex items-center justify-center p-3 bg-purple-900/30 rounded-full mb-4 ring-1 ring-purple-500/50">
             <Sparkles className="text-purple-400" size={24} />
           </div>
-          <h2 className="text-xl md:text-2xl font-bold text-white mb-2">AI SQL アシスタント</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-white mb-2">{t.aiAssistantTitle}</h2>
           <p className="text-slate-400 text-sm md:text-base">
-            知りたいデータを日本語で質問してください。<br className="hidden md:inline"/> GeminiがDB構造を解析してSQLを作成します。
+            {t.aiAssistantDesc}
           </p>
         </div>
 
@@ -139,7 +140,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="例: 売上が一番高い商品は？"
+            placeholder={t.aiPromptPlaceholder}
             className="w-full bg-slate-800 text-white placeholder-slate-500 border border-slate-700 rounded-xl px-4 py-3 md:px-6 md:py-4 pr-14 md:pr-16 text-base md:text-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent shadow-lg transition-all"
             disabled={loading}
           />
@@ -160,18 +161,17 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ onSqlGenerated }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-            <h3 className="font-semibold text-slate-300 mb-2">こんな質問ができます</h3>
-            <ul className="list-disc list-inside text-slate-400 space-y-1">
-              <li>登録日が昨日のユーザー一覧を表示</li>
-              <li>商品カテゴリごとの平均価格は？</li>
-              <li>在庫が10個以下のアイテムを探して</li>
+            <h3 className="font-semibold text-slate-300 mb-2">{t.aiQuestionsHeader}</h3>
+            <ul className="list-disc list-inside text-slate-400 space-y-1 font-sans">
+              <li>{t.aiQuestionExample1}</li>
+              <li>{t.aiQuestionExample2}</li>
+              <li>{t.aiQuestionExample3}</li>
             </ul>
           </div>
           <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50">
-            <h3 className="font-semibold text-slate-300 mb-2">Tips</h3>
-            <p className="text-slate-400 leading-relaxed">
-              複雑な集計や結合も任せてください。<br/>
-              生成されたSQLは実行前にエディタで確認・編集できます。
+            <h3 className="font-semibold text-slate-300 mb-2">{t.aiTipsHeader}</h3>
+            <p className="text-slate-400 leading-relaxed font-sans">
+              {t.aiTipsBody}
             </p>
           </div>
         </div>

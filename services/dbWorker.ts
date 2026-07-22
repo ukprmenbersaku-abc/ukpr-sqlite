@@ -1,33 +1,42 @@
 // /services/dbWorker.ts
+import initSqlJsLoader from 'sql.js';
 
-// Since we are running inside a Web Worker, we load SQL.js via importScripts from cdnjs.
-// @ts-ignore
-importScripts("https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js");
+const ctx: any = self;
 
 let db: any = null;
 let SQL: any = null;
 
 async function initSqlJs() {
   if (SQL) return;
-  // @ts-ignore
-  if (typeof self.initSqlJs !== 'function') {
-    throw new Error('SQL.js is not loaded in Web Worker.');
-  }
 
-  // @ts-ignore
-  SQL = await self.initSqlJs({
-    locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}`
-  });
+  try {
+    SQL = await initSqlJsLoader({
+      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`
+    });
+  } catch (err1) {
+    console.warn("Primary CDN failed for sql.js, trying fallback CDN...", err1);
+    SQL = await initSqlJsLoader({
+      locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.14.1/${file}`
+    });
+  }
 }
 
-self.onmessage = async (e: MessageEvent) => {
+ctx.onmessage = async (e: MessageEvent) => {
   const { id, action, payload } = e.data;
 
   try {
     switch (action) {
       case 'init': {
         await initSqlJs();
-        self.postMessage({ id, success: true });
+        ctx.postMessage({ id, success: true });
+        break;
+      }
+      case 'close': {
+        if (db) {
+          try { db.close(); } catch (e) {}
+          db = null;
+        }
+        ctx.postMessage({ id, success: true });
         break;
       }
       case 'load': {
@@ -36,7 +45,7 @@ self.onmessage = async (e: MessageEvent) => {
           try { db.close(); } catch (e) {}
         }
         db = new SQL.Database(new Uint8Array(payload.buffer));
-        self.postMessage({ id, success: true });
+        ctx.postMessage({ id, success: true });
         break;
       }
       case 'create_new': {
@@ -45,13 +54,13 @@ self.onmessage = async (e: MessageEvent) => {
           try { db.close(); } catch (e) {}
         }
         db = new SQL.Database();
-        self.postMessage({ id, success: true });
+        ctx.postMessage({ id, success: true });
         break;
       }
       case 'export': {
         if (!db) throw new Error("Database not initialized");
         const data = db.export();
-        (self as any).postMessage({ id, success: true, result: data.buffer }, [data.buffer]);
+        ctx.postMessage({ id, success: true, result: data.buffer }, [data.buffer]);
         break;
       }
       case 'attach': {
@@ -76,7 +85,7 @@ self.onmessage = async (e: MessageEvent) => {
           }
 
           db.run(`ATTACH DATABASE '${fileName}' AS ${aliasName}`);
-          self.postMessage({ id, success: true, result: aliasName });
+          ctx.postMessage({ id, success: true, result: aliasName });
         } catch (err: any) {
           throw new Error(`Failed to attach ${name}: ${err.message}`);
         }
@@ -86,9 +95,9 @@ self.onmessage = async (e: MessageEvent) => {
         if (!db) throw new Error("Database not initialized");
         const results = db.exec(payload.sql);
         if (results.length === 0) {
-          self.postMessage({ id, success: true, result: null });
+          ctx.postMessage({ id, success: true, result: null });
         } else {
-          self.postMessage({ id, success: true, result: {
+          ctx.postMessage({ id, success: true, result: {
             columns: results[0].columns,
             values: results[0].values
           }});
@@ -97,7 +106,7 @@ self.onmessage = async (e: MessageEvent) => {
       }
       case 'get_tables': {
         if (!db) {
-          self.postMessage({ id, success: true, result: [] });
+          ctx.postMessage({ id, success: true, result: [] });
           break;
         }
         const tables: any[] = [];
@@ -141,12 +150,12 @@ self.onmessage = async (e: MessageEvent) => {
             });
           }
         }
-        self.postMessage({ id, success: true, result: tables });
+        ctx.postMessage({ id, success: true, result: tables });
         break;
       }
       case 'get_columns': {
         if (!db) {
-          self.postMessage({ id, success: true, result: [] });
+          ctx.postMessage({ id, success: true, result: [] });
           break;
         }
         const { tableName } = payload;
@@ -159,16 +168,16 @@ self.onmessage = async (e: MessageEvent) => {
         }
         const results = db.exec(query);
         if (results.length === 0) {
-          self.postMessage({ id, success: true, result: [] });
+          ctx.postMessage({ id, success: true, result: [] });
         } else {
           const columns = results[0].values.map((row: any[]) => row[1] as string);
-          self.postMessage({ id, success: true, result: columns });
+          ctx.postMessage({ id, success: true, result: columns });
         }
         break;
       }
       case 'get_table_data': {
         if (!db) {
-          self.postMessage({ id, success: true, result: null });
+          ctx.postMessage({ id, success: true, result: null });
           break;
         }
         const { tableName, limit } = payload;
@@ -188,9 +197,9 @@ self.onmessage = async (e: MessageEvent) => {
         }
 
         if (results.length === 0) {
-          self.postMessage({ id, success: true, result: null });
+          ctx.postMessage({ id, success: true, result: null });
         } else {
-          self.postMessage({ id, success: true, result: {
+          ctx.postMessage({ id, success: true, result: {
             columns: results[0].columns,
             values: results[0].values
           }});
@@ -203,7 +212,7 @@ self.onmessage = async (e: MessageEvent) => {
         const stmt = db.prepare(`UPDATE "${tableName}" SET "${column}" = ? WHERE rowid = ?`);
         stmt.run([value, rowId]);
         stmt.free();
-        self.postMessage({ id, success: true });
+        ctx.postMessage({ id, success: true });
         break;
       }
       case 'delete_row': {
@@ -212,7 +221,7 @@ self.onmessage = async (e: MessageEvent) => {
         const stmt = db.prepare(`DELETE FROM "${tableName}" WHERE rowid = ?`);
         stmt.run([rowId]);
         stmt.free();
-        self.postMessage({ id, success: true });
+        ctx.postMessage({ id, success: true });
         break;
       }
       case 'insert_row': {
@@ -227,20 +236,20 @@ self.onmessage = async (e: MessageEvent) => {
         const stmt = db.prepare(sql);
         stmt.run(values);
         stmt.free();
-        self.postMessage({ id, success: true });
+        ctx.postMessage({ id, success: true });
         break;
       }
       case 'drop_table': {
         if (!db) throw new Error("Database not initialized");
         const { tableName } = payload;
         db.run(`DROP TABLE "${tableName}"`);
-        self.postMessage({ id, success: true });
+        ctx.postMessage({ id, success: true });
         break;
       }
       default:
         throw new Error(`Unknown action: ${action}`);
     }
   } catch (err: any) {
-    self.postMessage({ id, success: false, error: err.message });
+    ctx.postMessage({ id, success: false, error: err.message });
   }
 };
