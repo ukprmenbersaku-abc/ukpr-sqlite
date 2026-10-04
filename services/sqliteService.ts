@@ -38,28 +38,38 @@ export const getWorker = (): Worker => {
   return worker as Worker;
 };
 
-// Internal message router helper
-const callWorker = <T>(action: string, payload?: any): Promise<T> => {
+// Internal message router helper with transferable support
+const callWorker = <T>(action: string, payload?: any, transfer?: Transferable[]): Promise<T> => {
   return new Promise((resolve, reject) => {
     try {
       const activeWorker = getWorker();
       const id = ++msgId;
       pendingPromises.set(id, { resolve, reject });
-      activeWorker.postMessage({ id, action, payload });
+      if (transfer && transfer.length > 0) {
+        activeWorker.postMessage({ id, action, payload }, transfer);
+      } else {
+        activeWorker.postMessage({ id, action, payload });
+      }
     } catch (err) {
       reject(err);
     }
   });
 };
 
-// Quietly export and cache DB state for recovery/export scenarios
-const syncBackup = async () => {
-  try {
-    const buffer = await callWorker<ArrayBuffer>('export');
-    currentDbBackup = buffer;
-  } catch (e) {
-    // Graceful bypass if database is empty/not ready
-  }
+// Non-blocking debounced backup synchronization (prevents expensive export on every single edit)
+let backupTimeout: any = null;
+const scheduleSyncBackup = () => {
+  if (backupTimeout) clearTimeout(backupTimeout);
+  backupTimeout = setTimeout(async () => {
+    try {
+      if (worker) {
+        const buffer = await callWorker<ArrayBuffer>('export');
+        currentDbBackup = buffer;
+      }
+    } catch (e) {
+      // Graceful bypass if worker is closed or busy
+    }
+  }, 1000);
 };
 
 export const initSqlJs = async (): Promise<void> => {
@@ -67,17 +77,17 @@ export const initSqlJs = async (): Promise<void> => {
 };
 
 export const loadDatabase = async (fileBuffer: ArrayBuffer): Promise<void> => {
-  // Save detached arraybuffer copy for background hot backups
+  // Keep one slice for local disaster recovery; transfer fileBuffer to worker with zero copy
   currentDbBackup = fileBuffer.slice(0);
   attachedDbsBackup.length = 0;
-  await callWorker<void>('load', { buffer: fileBuffer });
+  await callWorker<void>('load', { buffer: fileBuffer }, [fileBuffer]);
 };
 
 export const createNewDatabase = async (): Promise<void> => {
   currentDbBackup = null;
   attachedDbsBackup.length = 0;
   await callWorker<void>('create_new');
-  await syncBackup();
+  scheduleSyncBackup();
 };
 
 export const exportDatabase = async (): Promise<Uint8Array | null> => {
@@ -91,6 +101,7 @@ export const exportDatabase = async (): Promise<Uint8Array | null> => {
 };
 
 export const closeDatabase = async (): Promise<void> => {
+  if (backupTimeout) clearTimeout(backupTimeout);
   currentDbBackup = null;
   attachedDbsBackup.length = 0;
   if (worker) {
@@ -108,7 +119,7 @@ export const closeDatabase = async (): Promise<void> => {
 export const executeQuery = async (sql: string): Promise<QueryResult | null> => {
   const result = await callWorker<QueryResult | null>('execute', { sql });
   const lowerSql = sql.trim().toLowerCase();
-  // If editing schemas or executing transactional queries, sync backup
+  // If editing schemas or executing transactional queries, schedule non-blocking backup
   if (
     lowerSql.startsWith('insert') || 
     lowerSql.startsWith('update') || 
@@ -117,15 +128,16 @@ export const executeQuery = async (sql: string): Promise<QueryResult | null> => 
     lowerSql.startsWith('create') || 
     lowerSql.startsWith('alter')
   ) {
-    await syncBackup();
+    scheduleSyncBackup();
   }
   return result;
 };
 
 export const attachDatabase = async (name: string, buffer: ArrayBuffer): Promise<string> => {
-  const alias = await callWorker<string>('attach', { name, buffer });
-  attachedDbsBackup.push({ name, buffer: buffer.slice(0) });
-  await syncBackup();
+  const clone = buffer.slice(0);
+  const alias = await callWorker<string>('attach', { name, buffer }, [buffer]);
+  attachedDbsBackup.push({ name, buffer: clone });
+  scheduleSyncBackup();
   return alias;
 };
 
@@ -150,22 +162,22 @@ export const getDatabaseSchema = async (): Promise<string> => {
 
 export const updateCellValue = async (tableName: string, rowId: number, column: string, value: any): Promise<void> => {
   await callWorker<void>('update_cell', { tableName, rowId, column, value });
-  await syncBackup();
+  scheduleSyncBackup();
 };
 
 export const deleteRow = async (tableName: string, rowId: number): Promise<void> => {
   await callWorker<void>('delete_row', { tableName, rowId });
-  await syncBackup();
+  scheduleSyncBackup();
 };
 
 export const insertRow = async (tableName: string, rowData: Record<string, any>): Promise<void> => {
   await callWorker<void>('insert_row', { tableName, rowData });
-  await syncBackup();
+  scheduleSyncBackup();
 };
 
 export const dropTable = async (tableName: string): Promise<void> => {
   await callWorker<void>('drop_table', { tableName });
-  await syncBackup();
+  scheduleSyncBackup();
 };
 
 // --- KILL AND INSTANT DISASTER RECOVERY ---

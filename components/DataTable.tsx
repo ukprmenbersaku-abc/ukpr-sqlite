@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { QueryResult } from '../types.ts';
-import { Edit2, Trash2, Check, X, Plus, Save, Search, Zap } from 'lucide-react';
+import { Edit2, Trash2, Check, X, Plus, Save, Search, Zap, Download } from 'lucide-react';
 import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface DataTableProps {
@@ -107,12 +107,23 @@ export const DataTable: React.FC<DataTableProps> = ({
     );
   }
 
-  // Handle scroll trigger to update top offset & measurements
+  const rafIdRef = useRef<number | null>(null);
+
+  // Handle scroll trigger with rAF throttling for 60-120fps buttery-smooth virtual scrolling
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
-    setScrollTop(target.scrollTop);
-    setContainerHeight(target.clientHeight);
+    const currentTop = target.scrollTop;
+    if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      setScrollTop(currentTop);
+    });
   };
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, []);
 
   const handleEditClick = (rowId: number, col: string, currentValue: any) => {
     if (!isEditable || !onUpdateCell) return;
@@ -140,6 +151,34 @@ export const DataTable: React.FC<DataTableProps> = ({
     }
   };
 
+  // Instant client-side CSV export with UTF-8 BOM (prevents Excel mojibake on Japanese text)
+  const handleExportCsv = () => {
+    if (!data?.columns || filteredValues.length === 0) return;
+    const escapeCsv = (val: any) => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    const header = displayColumns.map(escapeCsv).join(',');
+    const rows = filteredValues.map(row => {
+      const cells = hasRowId ? row.slice(1) : row;
+      return cells.map(escapeCsv).join(',');
+    });
+    const csvContent = '\uFEFF' + [header, ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${tableName || 'query_results'}_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div id="data-table-container" className={`flex flex-col h-full bg-slate-900 border border-slate-700 rounded-lg overflow-hidden ${className}`}>
       {/* Top Filter and Info Bar */}
@@ -164,7 +203,7 @@ export const DataTable: React.FC<DataTableProps> = ({
           )}
         </div>
         
-        <div className="flex items-center gap-4 text-slate-400 font-sans">
+        <div className="flex items-center gap-3 text-slate-400 font-sans">
           <div>
             {lang === 'ja' ? (
               <span>全 <strong className="text-slate-200 font-mono text-sm font-semibold">{totalItems}</strong> 件を表示中 {searchQuery && `(元のデータ: ${data.values.length}件)`}</span>
@@ -172,6 +211,17 @@ export const DataTable: React.FC<DataTableProps> = ({
               <span>Showing <strong className="text-slate-200 font-mono text-sm font-semibold">{totalItems}</strong> matching rows {searchQuery && `(total: ${data.values.length})`}</span>
             )}
           </div>
+
+          {/* Quick CSV Export button */}
+          <button
+            onClick={handleExportCsv}
+            disabled={totalItems === 0}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-900 border border-slate-700/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors text-xs font-medium disabled:opacity-40 disabled:pointer-events-none shadow-sm"
+            title={lang === 'ja' ? 'CSVファイルとしてダウンロード (Excel文字化け防止BOM付き)' : 'Export as CSV (UTF-8 with BOM)'}
+          >
+            <Download size={13} className="text-indigo-400" />
+            <span>{t.exportCsv || 'CSV'}</span>
+          </button>
         </div>
       </div>
 

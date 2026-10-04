@@ -7,15 +7,23 @@
     <meta name="google-site-verification" content="k9_Js63Gy8uN3bu9hBcDrjPnLfXe3sdSp7OnSE-TEEI" />
     <title>SQLite on Web</title>
     <meta name="description" content="A lightweight, browser-based SQLite editor and visual explorer. Features direct file loading, interactive tables (add, edit, delete), an autocomplete SQL console, and Gemini AI. Fully supports Japanese language interface / 日本語表示および日本語での操作にも対応しています。" />
+    
+    <!-- Multi-regional & Language Alternate Links (SEO) -->
+    <link rel="alternate" hreflang="ja" href="https://sqlite-ja.y-s.dev" />
+    <link rel="alternate" hreflang="en" href="https://sqlite.y-s.dev" />
+    <link rel="alternate" hreflang="x-default" href="https://sqlite.y-s.dev" />
+
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=M+PLUS+1+Code:wght@400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Noto+Sans+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <!-- Preload SQLite WebAssembly binary for instant startup -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/sql-wasm.wasm" as="fetch" type="application/wasm" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- Tailwind CSS for Preview (CDN) -->
+    <!-- Stylesheet -->
     <link rel="stylesheet" href="./index.css">
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
   <script type="importmap">
 {
   "imports": {

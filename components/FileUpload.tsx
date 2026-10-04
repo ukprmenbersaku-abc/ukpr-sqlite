@@ -1,15 +1,16 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FilePlus, ChevronDown, ChevronUp, Shield, Zap, Globe, Folders, HelpCircle, FileCheck2, RefreshCw } from 'lucide-react';
+import { Upload, FilePlus, ChevronDown, ChevronUp, Shield, Zap, Globe, Folders, HelpCircle, FileCheck2, RefreshCw, Scale, ExternalLink } from 'lucide-react';
 import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface FileUploadProps {
   onFileLoaded: (file: File) => void;
   onCreateNew: () => void;
   onFolderLoaded: (files: File[]) => void;
+  onOpenLicense?: () => void;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNew, onFolderLoaded }) => {
-  const { lang, t } = useLanguage();
+export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNew, onFolderLoaded, onOpenLicense }) => {
+  const { lang, t, currentHostname } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const directoryInputRef = useRef<HTMLInputElement>(null);
   const multiFileInputRef = useRef<HTMLInputElement>(null);
@@ -336,9 +337,89 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
                         </p>
                       </div>
                     </div>
+
+                    {/* Terms & License Section in About */}
+                    <div className="flex gap-3 pt-3 border-t border-slate-700/40">
+                      <div className="mt-1 text-indigo-400"><Scale size={18} /></div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <h4 className="text-sm font-semibold text-white">{t.licenseAndTerms}</h4>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-700/50 font-medium">
+                            UKPR-S &amp; Ys-tecks
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 leading-relaxed mb-2">
+                          {lang === 'ja'
+                            ? '個人利用・商用利用無料。生成物の権利は利用者に帰属します。使用ライブラリ（React, SQL.js, Lucide等）はすべて寛容なパーミッシブライセンス（MIT/ISC/Apache 2.0）です。'
+                            : 'Free for personal and commercial use. Generated output belongs to the user. All dependencies use permissive open-source licenses (MIT/ISC/Apache 2.0).'}
+                        </p>
+                        {onOpenLicense && (
+                          <button
+                            type="button"
+                            onClick={onOpenLicense}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+                          >
+                            <span>{t.openLicenses}</span>
+                            <ExternalLink size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Home Screen Footer: Licenses & Multi-domain links */}
+            <div className="w-full max-w-lg mt-6 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <span>&copy; UKPR-S &amp; Ys-tecks</span>
+                <span>•</span>
+                {onOpenLicense && (
+                  <button 
+                    onClick={onOpenLicense} 
+                    className="hover:text-indigo-400 underline underline-offset-2 transition-colors flex items-center gap-1"
+                  >
+                    <Scale size={12} />
+                    <span>{t.licenseAndTerms}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Language Domain Switchers */}
+              <div className="flex items-center gap-3 text-[11px]">
+                <a
+                  href="https://sqlite-ja.y-s.dev"
+                  target="_top"
+                  rel="alternate"
+                  hrefLang="ja"
+                  className={`hover:text-slate-300 transition-colors flex items-center gap-1 ${
+                    currentHostname === 'sqlite-ja.y-s.dev' || (lang === 'ja' && !currentHostname.includes('sqlite.y-s.dev'))
+                      ? 'text-indigo-400 font-semibold'
+                      : 'text-slate-400'
+                  }`}
+                  title={lang === 'ja' ? '日本語専用ドメイン (sqlite-ja.y-s.dev) へ移動' : 'Navigate to Japanese site (sqlite-ja.y-s.dev)'}
+                >
+                  <Globe size={11} />
+                  <span>sqlite-ja.y-s.dev (JA)</span>
+                </a>
+                <span>|</span>
+                <a
+                  href="https://sqlite.y-s.dev"
+                  target="_top"
+                  rel="alternate"
+                  hrefLang="en"
+                  className={`hover:text-slate-300 transition-colors flex items-center gap-1 ${
+                    currentHostname === 'sqlite.y-s.dev' || (lang === 'en' && !currentHostname.includes('sqlite-ja.y-s.dev'))
+                      ? 'text-indigo-400 font-semibold'
+                      : 'text-slate-400'
+                  }`}
+                  title={lang === 'ja' ? '英語版グローバルドメイン (sqlite.y-s.dev) へ移動' : 'Navigate to English / Global site (sqlite.y-s.dev)'}
+                >
+                  <Globe size={11} />
+                  <span>sqlite.y-s.dev (EN)</span>
+                </a>
+              </div>
             </div>
           </>
         )}

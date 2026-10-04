@@ -8,6 +8,7 @@ import { AiAssistant } from './components/AiAssistant.tsx';
 import { QueryExamples } from './components/QueryExamples.tsx';
 import { ConfirmModal } from './components/ConfirmModal.tsx';
 import { JoinVisualizer } from './components/JoinVisualizer.tsx';
+import { LicenseModal } from './components/LicenseModal.tsx';
 import { 
   loadDatabase, 
   createNewDatabase, 
@@ -26,7 +27,7 @@ import {
   initSqlJs
 } from './services/sqliteService.ts';
 import { TableInfo, QueryResult, ViewMode } from './types.ts';
-import { Menu, Sun, Moon } from 'lucide-react';
+import { Menu, Sun, Moon, Scale } from 'lucide-react';
 import { useLanguage } from './utils/LanguageContext.tsx';
 
 function App() {
@@ -54,6 +55,7 @@ function App() {
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [isQueryRunning, setIsQueryRunning] = useState(false);
   const [columnCache, setColumnCache] = useState<Record<string, string[]>>({});
+  const [isLicenseOpen, setIsLicenseOpen] = useState(false);
 
   const globalFolderInputRef = useRef<HTMLInputElement>(null);
 
@@ -175,7 +177,7 @@ function App() {
         if (isFileLoaded) {
           onDownloadFile();
         } else {
-          alert("保存・保存用ダウンロードを実行するデータベースが読み込まれていません。");
+          alert(t.noDatabaseLoadedWarning);
         }
         return;
       }
@@ -363,7 +365,7 @@ function App() {
         setActiveTable(null);
       }
     } catch (err: any) {
-      setError(`テーブル一覧の更新に失敗しました: ${err.message}`);
+      setError(lang === 'ja' ? `テーブル一覧の更新に失敗しました: ${err.message}` : `Failed to refresh tables: ${err.message}`);
     }
   };
 
@@ -550,6 +552,7 @@ function App() {
         onCreateNew={onCreateNew}
         onCloseFile={onCloseFileRequest}
         onDownloadFile={onDownloadFile}
+        onOpenLicense={() => setIsLicenseOpen(true)}
       />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -575,8 +578,18 @@ function App() {
             )}
           </div>
           
-          {/* Header Theme Switcher Switch & Language Switcher */}
+          {/* Header Theme Switcher Switch & Language Switcher & License Button */}
           <div className="flex items-center gap-2 select-none">
+            {/* License & Terms Button */}
+            <button
+              onClick={() => setIsLicenseOpen(true)}
+              className="p-1.5 md:p-2 rounded-lg bg-slate-900/40 border border-slate-700/60 hover:bg-slate-700 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs font-semibold shadow-inner"
+              title={t.licenseAndTerms}
+            >
+              <Scale size={15} className="text-indigo-400" />
+              <span className="hidden xl:inline">{t.licenseAndTerms}</span>
+            </button>
+
             {/* Language Segmented Control */}
             <div className="flex items-center p-0.5 rounded-lg bg-slate-900/50 border border-slate-700/60 shadow-inner theme-lang-pill">
               <button
@@ -631,6 +644,7 @@ function App() {
               onFileLoaded={onFileLoaded} 
               onCreateNew={onCreateNew} 
               onFolderLoaded={onFolderLoaded} 
+              onOpenLicense={() => setIsLicenseOpen(true)}
             />
           ) : (
             // File Loaded State
@@ -720,6 +734,12 @@ function App() {
         onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
         className="hidden" 
         {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
+      />
+
+      {/* Terms & Open-Source Licenses Modal */}
+      <LicenseModal 
+        isOpen={isLicenseOpen} 
+        onClose={() => setIsLicenseOpen(false)} 
       />
     </div>
   );

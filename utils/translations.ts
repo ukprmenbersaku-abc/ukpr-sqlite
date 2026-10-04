@@ -172,7 +172,13 @@ export const translations = {
     aiQuestionExample3: "在庫が10個以下のアイテムを探して",
     aiTipsHeader: "Tips",
     aiTipsBody: "複雑な集計や結合も任せてください。生成されたSQLは実行前にエディタで確認・編集できます。",
-    aiErrorOccurred: "エラーが発生しました"
+    aiErrorOccurred: "エラーが発生しました",
+    licenseAndTerms: "利用規約・ライセンス",
+    licenseNoticeSummary: "無料利用可・商用利用可（成果物の権利は利用者に帰属 / 再配布は要許可）",
+    openLicenses: "ライセンス情報を確認",
+    switchDomainJa: "日本語版サイト (sqlite-ja.y-s.dev)",
+    switchDomainEn: "英語版サイト (sqlite.y-s.dev)",
+    currentDomainNotice: "現在の接続ドメイン"
   },
   en: {
     appName: "SQLite on Web",
@@ -345,6 +351,12 @@ export const translations = {
     aiQuestionExample3: "Find items with stock level under 10",
     aiTipsHeader: "Tips",
     aiTipsBody: "Complex summaries and joins are supported! Generated SQL can be inspected and edited before execution.",
-    aiErrorOccurred: "An error occurred"
+    aiErrorOccurred: "An error occurred",
+    licenseAndTerms: "Terms & Licenses",
+    licenseNoticeSummary: "Free for Personal & Commercial Use (Artifacts belong to user / Redistribution requires permission)",
+    openLicenses: "View License Details",
+    switchDomainJa: "Japanese Site (sqlite-ja.y-s.dev)",
+    switchDomainEn: "English Site (sqlite.y-s.dev)",
+    currentDomainNotice: "Current Domain"
   }
 };

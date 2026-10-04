@@ -1,7 +1,18 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Play, Square, AlertCircle, ChevronDown, ChevronUp, Shield, Zap, Globe } from 'lucide-react';
 import { SqlErrorDetails } from './SqlErrorDetails.tsx';
 import { useLanguage } from '../utils/LanguageContext.tsx';
+
+// Precompiled keywords regex outside component for maximum speed
+const SQL_KEYWORDS = [
+  'SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'ON', 
+  'GROUP BY', 'ORDER BY', 'LIMIT', 'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 
+  'DELETE', 'CREATE TABLE', 'DROP TABLE', 'AND', 'OR', 'IN', 'LIKE', 'IS', 'AS', 
+  'INDEX', 'VIEW', 'HAVING', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'INTEGER', 'TEXT', 
+  'REAL', 'BLOB', 'NOT NULL', 'PRIMARY KEY'
+].sort((a, b) => b.length - a.length);
+
+const KEYWORDS_REGEX = new RegExp(`\\b(${SQL_KEYWORDS.map(k => k.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')).join('|')})\\b`, 'gi');
 
 interface SqlEditorProps {
   initialSql?: string;
@@ -253,26 +264,11 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
       return id;
     });
 
-    // Keywords
-    const keywords = [
-      'SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'INNER JOIN', 'ON', 
-      'GROUP BY', 'ORDER BY', 'LIMIT', 'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 
-      'DELETE', 'CREATE TABLE', 'DROP TABLE', 'AND', 'OR', 'IN', 'LIKE', 'IS', 'AS', 
-      'INDEX', 'VIEW', 'HAVING', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'INTEGER', 'TEXT', 
-      'REAL', 'BLOB', 'NOT NULL', 'PRIMARY KEY'
-    ];
-
-    // Sort keywords by length descending so composite phrases get replaced first
-    const sortedKeywords = [...keywords].sort((a, b) => b.length - a.length);
-
-    sortedKeywords.forEach(kw => {
-      const escapedKw = kw.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(`\\b(${escapedKw})\\b`, 'gi');
-      processed = processed.replace(regex, (match) => {
-        const id = `___KEYWORD_${getAlphaId(placeholderId++)}___`;
-        placeholders[id] = `<span class="text-indigo-400 font-semibold">${match}</span>`;
-        return id;
-      });
+    // Keywords using precompiled KEYWORDS_REGEX
+    processed = processed.replace(KEYWORDS_REGEX, (match) => {
+      const id = `___KEYWORD_${getAlphaId(placeholderId++)}___`;
+      placeholders[id] = `<span class="text-indigo-400 font-semibold">${match}</span>`;
+      return id;
     });
 
     // Style numbers (Using word boundaries; safe because our placeholder IDs are purely alphabetical)
@@ -291,6 +287,8 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
 
     return processed;
   };
+
+  const highlightedHtml = useMemo(() => highlightSql(sql), [sql]);
 
   const commonStyles = "absolute inset-0 p-4 font-mono text-sm leading-relaxed whitespace-pre overflow-auto border-0 focus:ring-0 focus:outline-none resize-none bg-transparent m-0";
 
@@ -325,7 +323,7 @@ export const SqlEditor: React.FC<SqlEditorProps> = ({
           ref={preContainerRef}
           className={`${commonStyles} text-slate-200 pointer-events-none`}
           style={{ whiteSpace: 'pre', wordBreak: 'keep-all' }}
-          dangerouslySetInnerHTML={{ __html: highlightSql(sql) + '\n' }}
+          dangerouslySetInnerHTML={{ __html: highlightedHtml + '\n' }}
         />
 
         {/* Overlay Interactive Textarea */}

@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { TableInfo, ViewMode } from '../types.ts';
-import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download, BookOpen, Folders } from 'lucide-react';
+import { Database, Terminal, Sparkles, Table as TableIcon, X, Trash2, FolderOpen, FilePlus, LogOut, Download, BookOpen, Folders, Scale } from 'lucide-react';
 import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface SidebarProps {
@@ -20,6 +20,7 @@ interface SidebarProps {
   onCreateNew: () => void;
   onCloseFile: () => void;
   onDownloadFile: () => void;
+  onOpenLicense?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -37,7 +38,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onFolderOpen,
   onCreateNew,
   onCloseFile,
-  onDownloadFile
+  onDownloadFile,
+  onOpenLicense
 }) => {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -274,14 +276,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
         
         {/* Footer info */}
-        {isFileLoaded && fileName && (
-          <div className="p-4 border-t border-slate-800 bg-slate-900/50">
-            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t.currentFile}</div>
-            <div className="text-sm text-slate-300 font-medium truncate" title={fileName}>
-              {fileName}
+        <div className="p-3 border-t border-slate-800 bg-slate-900/50 space-y-2">
+          {isFileLoaded && fileName && (
+            <div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-0.5">{t.currentFile}</div>
+              <div className="text-xs text-slate-300 font-medium truncate" title={fileName}>
+                {fileName}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {onOpenLicense && (
+            <button
+              onClick={onOpenLicense}
+              className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400 hover:text-indigo-300 hover:bg-slate-800/60 rounded transition-colors text-left"
+            >
+              <Scale size={14} className="text-indigo-400 shrink-0" />
+              <span className="truncate">{t.licenseAndTerms}</span>
+            </button>
+          )}
+        </div>
       </div>
     </>
   );

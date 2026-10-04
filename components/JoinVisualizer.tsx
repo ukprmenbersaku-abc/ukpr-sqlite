@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GitMerge, Database, Link2, ArrowRight } from 'lucide-react';
 import { parseSqlJoins } from '../utils/sqlParser.ts';
 import { useLanguage } from '../utils/LanguageContext.tsx';
@@ -9,12 +9,14 @@ interface JoinVisualizerProps {
 
 export const JoinVisualizer: React.FC<JoinVisualizerProps> = ({ sql }) => {
   const { lang } = useLanguage();
-  if (!sql) return null;
 
-  const { tables, joins } = parseSqlJoins(sql);
+  const { tables, joins } = useMemo(() => {
+    if (!sql) return { tables: [], joins: [] };
+    return parseSqlJoins(sql);
+  }, [sql]);
 
   // If there's no FROM, no tables, or no actual table joins, do not display the visualizer block
-  if (tables.length === 0 || joins.length === 0) return null;
+  if (!sql || tables.length === 0 || joins.length === 0) return null;
 
   const isMultiDb = tables.some(t => t.includes('.'));
 
