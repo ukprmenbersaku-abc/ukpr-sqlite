@@ -23,12 +23,19 @@ import {
   dropTable,
   getTableColumns,
   attachDatabase,
+  detachDatabase,
   cancelCurrentQuery,
   initSqlJs
 } from './services/sqliteService.ts';
 import { TableInfo, QueryResult, ViewMode } from './types.ts';
-import { Menu, Sun, Moon, Scale } from 'lucide-react';
+import { Menu, Sun, Moon, Scale, CheckCircle2, AlertTriangle, Info, XCircle, X } from 'lucide-react';
 import { useLanguage } from './utils/LanguageContext.tsx';
+
+export interface ToastItem {
+  id: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+}
 
 function App() {
   const { lang, setLang, t } = useLanguage();
@@ -57,6 +64,20 @@ function App() {
   const [columnCache, setColumnCache] = useState<Record<string, string[]>>({});
   const [isLicenseOpen, setIsLicenseOpen] = useState(false);
 
+  // Multi-database management state
+  const [attachedDatabases, setAttachedDatabases] = useState<{ name: string; alias: string }[]>([]);
+
+  // Toast Notifications (smooth, non-intrusive in-app notifications)
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const showToast = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(item => item.id !== id));
+    }, 4500);
+  };
+
   const globalFolderInputRef = useRef<HTMLInputElement>(null);
 
   const openFolderPicker = () => {
@@ -68,35 +89,14 @@ function App() {
       const dbFiles = files.filter(f => f.name.match(/\.(sqlite|db|sqlite3)$/i));
       if (dbFiles.length === 0) {
         const isIframe = window.self !== window.top;
-        if (lang === 'ja') {
-          if (isIframe) {
-            alert(
-              "選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。\n\n" +
-              "【お知らせ】\n" +
-              "現在、プレビュー枠内(iFrame)のセキュリティ制限により、ブラウザがフォルダ内のファイルを正常に取得できていない可能性があります。\n" +
-              "お手数ですが、以下のいずれかをお試しください：\n" +
-              "1. 画面右上の「新窓（Open in New Tab）」ボタンから本アプリを開いて再度試す\n" +
-              "2. 「フォルダを開く」ボタンのすぐ下にある「※代わりに複数ファイルを選択」ボタンを使用する\n" +
-              "3. 複数のファイルを直接本画面にドラッグ＆ドロップする"
-            );
-          } else {
-            alert("選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。フォルダ内の構成を確認してください。");
-          }
-        } else {
-          if (isIframe) {
-            alert(
-              "No SQLite files (.db, .sqlite, .sqlite3) were found in the selected folder.\n\n" +
-              "【Notice】\n" +
-              "The preview iframe's security sandbox might be blocking folder access.\n" +
-              "Please try one of the following:\n" +
-              "1. Click the 'Open in New Tab' button in the top right to run the app in a dedicated window.\n" +
-              "2. Click the 'Select multiple files instead' button just below the Folder button.\n" +
-              "3. Select and drag & drop multiple database files directly onto this screen."
-            );
-          } else {
-            alert("No SQLite files (.db, .sqlite, .sqlite3) were found in the selected folder. Please check the folder contents.");
-          }
-        }
+        const msg = lang === 'ja'
+          ? (isIframe 
+              ? "選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。プレビュー枠外の新窓で開くか、複数ファイル選択をお試しください。"
+              : "選択されたフォルダ内にSQLiteファイル（.db, .sqlite, .sqlite3）が見つかりませんでした。フォルダ内の構成を確認してください。")
+          : (isIframe
+              ? "No SQLite files (.db, .sqlite, .sqlite3) found in folder. If blocked by preview sandbox, try opening in a new tab or selecting multiple files."
+              : "No SQLite files (.db, .sqlite, .sqlite3) found in folder. Please check the folder contents.");
+        showToast(msg, 'warning');
         return;
       }
 
@@ -108,51 +108,43 @@ function App() {
       setFileName(firstFile.name);
 
       // Attach remaining databases
-      const attachedList: string[] = [];
+      const attachedInfo: { name: string; alias: string }[] = [];
       for (let i = 1; i < dbFiles.length; i++) {
         const file = dbFiles[i];
         const buffer = await file.arrayBuffer();
         try {
           const alias = await attachDatabase(file.name, buffer);
-          attachedList.push(`${file.name} (as '${alias}')`);
+          attachedInfo.push({ name: file.name, alias });
         } catch (attachErr: any) {
           console.error(`Error attaching ${file.name}:`, attachErr);
         }
       }
+      setAttachedDatabases(attachedInfo);
 
-      refreshTables();
+      await refreshTables();
       setIsFileLoaded(true);
       setCurrentView('BROWSE');
       setIsSidebarOpen(false);
 
-      if (attachedList.length > 0) {
-        if (lang === 'ja') {
-          alert(
-            `${firstFile.name} をメインデータベースとして読み込み、以下の ${attachedList.length} 件のデータベースファイルを正常にマウント（ATTACH）しました！\n\n` +
-            attachedList.join('\n') +
-            `\n\n各テーブルはデータベース名を付与して相互に結合（JOIN）検索できます。（例: SELECT * FROM main_table JOIN ${attachedList[0].split(' ')[1]} ...）`
-          );
-        } else {
-          alert(
-            `Loaded ${firstFile.name} as primary database, and successfully attached ${attachedList.length} database files!\n\n` +
-            attachedList.join('\n') +
-            `\n\nYou can perform cross-joins by specifying database alias prefixes. (e.g., SELECT * FROM main_table JOIN ${attachedList[0].split(' ')[1]} ...)`
-          );
-        }
+      if (attachedInfo.length > 0) {
+        showToast(
+          lang === 'ja'
+            ? `${firstFile.name} をメインDBとして読み込み、他 ${attachedInfo.length} 件のDBをマウントしました！VS Code風サイドバーで相互確認できます。`
+            : `Loaded ${firstFile.name} as primary DB, attached ${attachedInfo.length} databases! You can now manage them in the Explorer.`,
+          'success'
+        );
       } else {
-        if (lang === 'ja') {
-          alert(`${firstFile.name} を正常に読み込みました。`);
-        } else {
-          alert(`Successfully loaded ${firstFile.name}.`);
-        }
+        showToast(
+          lang === 'ja' ? `${firstFile.name} を読み込みました。` : `Loaded ${firstFile.name}.`,
+          'success'
+        );
       }
     } catch (e: any) {
       console.error(e);
-      if (lang === 'ja') {
-        alert(`フォルダの展開中にエラーが発生しました: ${e.message}`);
-      } else {
-        alert(`An error occurred while loading the folder: ${e.message}`);
-      }
+      showToast(
+        lang === 'ja' ? `フォルダの展開エラー: ${e.message}` : `Error loading folder: ${e.message}`,
+        'error'
+      );
     }
   };
 
@@ -177,7 +169,7 @@ function App() {
         if (isFileLoaded) {
           onDownloadFile();
         } else {
-          alert(t.noDatabaseLoadedWarning);
+          showToast(t.noDatabaseLoadedWarning, 'warning');
         }
         return;
       }
@@ -238,7 +230,7 @@ function App() {
     setModalConfig(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Handle file loading
+  // Handle primary file loading
   const onFileLoaded = async (file: File) => {
     try {
       // Clear previous state completely first
@@ -247,6 +239,7 @@ function App() {
       setEditorSql('');
       setError(null);
       setExecutionTime(null);
+      setAttachedDatabases([]);
 
       const buffer = await file.arrayBuffer();
       await loadDatabase(buffer);
@@ -255,9 +248,10 @@ function App() {
       setIsFileLoaded(true);
       setCurrentView('BROWSE');
       setIsSidebarOpen(false);
+      showToast(lang === 'ja' ? `${file.name} を開きました` : `Opened ${file.name}`, 'success');
     } catch (e: any) {
       console.error(e);
-      alert(t.loadFileFailed + (e?.message ? `: ${e.message}` : ''));
+      showToast(t.loadFileFailed + (e?.message ? `: ${e.message}` : ''), 'error');
     }
   };
 
@@ -269,6 +263,7 @@ function App() {
       setEditorSql('');
       setError(null);
       setExecutionTime(null);
+      setAttachedDatabases([]);
 
       await createNewDatabase();
       setFileName('new_database.sqlite');
@@ -276,10 +271,65 @@ function App() {
       setIsFileLoaded(true);
       setCurrentView('SQL');
       setIsSidebarOpen(false);
+      showToast(lang === 'ja' ? '新しい空のデータベースを作成しました' : 'Created a new in-memory SQLite database', 'success');
     } catch (e: any) {
       console.error(e);
-      alert(lang === 'ja' ? `新規データベースの作成に失敗しました: ${e.message}` : `Failed to create new database: ${e.message}`);
+      showToast(lang === 'ja' ? `新規DB作成エラー: ${e.message}` : `Failed to create DB: ${e.message}`, 'error');
     }
+  };
+
+  // Attach additional database file dynamically
+  const onAttachFile = async (file: File) => {
+    try {
+      const buffer = await file.arrayBuffer();
+      const alias = await attachDatabase(file.name, buffer);
+      setAttachedDatabases(prev => [...prev.filter(d => d.alias !== alias), { name: file.name, alias }]);
+      await refreshTables();
+      showToast(
+        lang === 'ja' 
+          ? `${file.name} を '${alias}' としてマウントしました！` 
+          : `Attached ${file.name} as '${alias}'!`,
+        'success'
+      );
+    } catch (e: any) {
+      console.error(e);
+      showToast(lang === 'ja' ? `DBマウントエラー: ${e.message}` : `Attach error: ${e.message}`, 'error');
+    }
+  };
+
+  // Detach database file
+  const handleDetachDatabaseRequest = (alias: string) => {
+    setModalConfig({
+      isOpen: true,
+      title: t.detachConfirmTitle,
+      message: t.detachConfirmMessage.replace('{alias}', alias),
+      isDestructive: true,
+      confirmText: t.detachConfirmText,
+      onConfirm: async () => {
+        try {
+          await detachDatabase(alias);
+          setAttachedDatabases(prev => prev.filter(d => d.alias !== alias));
+          await refreshTables();
+          closeModal();
+          showToast(
+            lang === 'ja' ? `データベース '${alias}' を解除しました` : `Detached database '${alias}'`,
+            'info'
+          );
+        } catch (e: any) {
+          closeModal();
+          showToast(
+            lang === 'ja' ? `解除に失敗しました: ${e.message}` : `Failed to detach: ${e.message}`,
+            'error'
+          );
+        }
+      }
+    });
+  };
+
+  const handleRunQuickSql = (sql: string) => {
+    setEditorSql(sql);
+    setCurrentView('SQL');
+    handleExecuteSql(sql);
   };
 
   const onDownloadFile = async () => {
@@ -295,9 +345,10 @@ function App() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      showToast(lang === 'ja' ? 'ダウンロードを開始しました' : 'Download started', 'success');
     } catch (e) {
       console.error(e);
-      alert(t.saveFileFailed);
+      showToast(t.saveFileFailed, 'error');
     }
   };
 
@@ -322,6 +373,7 @@ function App() {
     // Reset all states to initial values completely
     setIsFileLoaded(false);
     setFileName(null);
+    setAttachedDatabases([]);
     setTables([]);
     setQueryResult(null);
     setActiveTable(null);
@@ -535,7 +587,7 @@ function App() {
         />
       )}
 
-      {/* Sidebar is always rendered */}
+      {/* Sidebar is always rendered (VS Code Activity Bar + Explorer Sidebar) */}
       <Sidebar 
         tables={tables}
         currentView={currentView}
@@ -553,6 +605,13 @@ function App() {
         onCloseFile={onCloseFileRequest}
         onDownloadFile={onDownloadFile}
         onOpenLicense={() => setIsLicenseOpen(true)}
+        attachedFiles={attachedDatabases}
+        onAttachFile={onAttachFile}
+        onDetachDatabase={handleDetachDatabaseRequest}
+        onRefreshTables={refreshTables}
+        onRunQuickSql={handleRunQuickSql}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       <main className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
@@ -741,6 +800,42 @@ function App() {
         isOpen={isLicenseOpen} 
         onClose={() => setIsLicenseOpen(false)} 
       />
+
+      {/* Floating Toast Notifications (VS Code aesthetic, zero blocking alerts) */}
+      {toasts.length > 0 && (
+        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+          {toasts.map(toast => (
+            <div 
+              key={toast.id}
+              className={`pointer-events-auto flex items-start gap-2.5 p-3 rounded-lg shadow-xl border text-xs backdrop-blur-md transition-all ${
+                toast.type === 'success' 
+                  ? 'bg-slate-900/95 border-emerald-500/60 text-emerald-200' 
+                  : toast.type === 'error'
+                  ? 'bg-slate-900/95 border-rose-500/60 text-rose-200'
+                  : toast.type === 'warning'
+                  ? 'bg-slate-900/95 border-amber-500/60 text-amber-200'
+                  : 'bg-slate-900/95 border-indigo-500/60 text-indigo-200'
+              }`}
+            >
+              <div className="shrink-0 mt-0.5">
+                {toast.type === 'success' && <CheckCircle2 size={16} className="text-emerald-400" />}
+                {toast.type === 'error' && <XCircle size={16} className="text-rose-400" />}
+                {toast.type === 'warning' && <AlertTriangle size={16} className="text-amber-400" />}
+                {toast.type === 'info' && <Info size={16} className="text-indigo-400" />}
+              </div>
+              <div className="flex-1 font-medium leading-relaxed whitespace-pre-wrap">
+                {toast.message}
+              </div>
+              <button
+                onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                className="shrink-0 text-slate-400 hover:text-white p-0.5 rounded transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

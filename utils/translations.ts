@@ -178,7 +178,23 @@ export const translations = {
     openLicenses: "ライセンス情報を確認",
     switchDomainJa: "日本語版サイト (sqlite-ja.y-s.dev)",
     switchDomainEn: "英語版サイト (sqlite.y-s.dev)",
-    currentDomainNotice: "現在の接続ドメイン"
+    currentDomainNotice: "現在の接続ドメイン",
+    explorer: "エクスプローラー",
+    openDatabases: "データベース一覧",
+    allTables: "すべてのテーブル",
+    addDatabase: "DBファイルを追加 (ATTACH)",
+    detachDatabase: "このDBを解除 (DETACH)",
+    filterTablesPlaceholder: "テーブルやDB名を絞り込み...",
+    collapseAll: "すべて折りたたむ",
+    expandAll: "すべて展開",
+    mainDatabase: "メインDB",
+    attachedDatabase: "マウント中",
+    tableCount: "{count}個のテーブル",
+    quickSnippets: "クイックSQLスニペット",
+    detachConfirmTitle: "データベースの解除",
+    detachConfirmMessage: "データベース '{alias}' を現在のワークスペースから解除（DETACH）しますか？",
+    detachConfirmText: "解除する",
+    relations: "テーブル関連 (JOIN)"
   },
   en: {
     appName: "SQLite on Web",
@@ -357,6 +373,22 @@ export const translations = {
     openLicenses: "View License Details",
     switchDomainJa: "Japanese Site (sqlite-ja.y-s.dev)",
     switchDomainEn: "English Site (sqlite.y-s.dev)",
-    currentDomainNotice: "Current Domain"
+    currentDomainNotice: "Current Domain",
+    explorer: "Explorer",
+    openDatabases: "Open Databases",
+    allTables: "All Tables",
+    addDatabase: "Add / Attach Database",
+    detachDatabase: "Detach Database",
+    filterTablesPlaceholder: "Filter tables & databases...",
+    collapseAll: "Collapse All",
+    expandAll: "Expand All",
+    mainDatabase: "Main DB",
+    attachedDatabase: "Attached",
+    tableCount: "{count} tables",
+    quickSnippets: "Quick SQL Snippets",
+    detachConfirmTitle: "Detach Database",
+    detachConfirmMessage: "Are you sure you want to detach database '{alias}' from current session?",
+    detachConfirmText: "Detach",
+    relations: "Relations (JOIN)"
   }
 };

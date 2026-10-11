@@ -141,6 +141,15 @@ export const attachDatabase = async (name: string, buffer: ArrayBuffer): Promise
   return alias;
 };
 
+export const detachDatabase = async (alias: string): Promise<void> => {
+  await callWorker<void>('detach', { alias });
+  const idx = attachedDbsBackup.findIndex(d => d.name === alias);
+  if (idx !== -1) {
+    attachedDbsBackup.splice(idx, 1);
+  }
+  scheduleSyncBackup();
+};
+
 export const getTables = async (): Promise<TableInfo[]> => {
   return callWorker<TableInfo[]>('get_tables');
 };

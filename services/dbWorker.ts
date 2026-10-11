@@ -11,13 +11,25 @@ async function initSqlJs() {
 
   try {
     SQL = await initSqlJsLoader({
-      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`
+      locateFile: (file: string) => {
+        if (file.endsWith('.wasm')) {
+          return '/sql-wasm.wasm';
+        }
+        return `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`;
+      }
     });
   } catch (err1) {
-    console.warn("Primary CDN failed for sql.js, trying fallback CDN...", err1);
-    SQL = await initSqlJsLoader({
-      locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.14.1/${file}`
-    });
+    console.warn("Primary local WASM load failed, attempting CDN fallback...", err1);
+    try {
+      SQL = await initSqlJsLoader({
+        locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/${file}`
+      });
+    } catch (err2) {
+      console.warn("jsdelivr CDN failed, attempting cdnjs fallback...", err2);
+      SQL = await initSqlJsLoader({
+        locateFile: (file: string) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.14.1/${file}`
+      });
+    }
   }
 }
 
@@ -88,6 +100,22 @@ ctx.onmessage = async (e: MessageEvent) => {
           ctx.postMessage({ id, success: true, result: aliasName });
         } catch (err: any) {
           throw new Error(`Failed to attach ${name}: ${err.message}`);
+        }
+        break;
+      }
+      case 'detach': {
+        if (!db) throw new Error("Database not initialized");
+        const { alias } = payload;
+        try {
+          db.run(`DETACH DATABASE "${alias}"`);
+          if (SQL.FS) {
+            try {
+              SQL.FS.unlink(`/db_${alias}.db`);
+            } catch (e) {}
+          }
+          ctx.postMessage({ id, success: true });
+        } catch (err: any) {
+          throw new Error(`Failed to detach ${alias}: ${err.message}`);
         }
         break;
       }

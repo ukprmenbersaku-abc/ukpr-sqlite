@@ -8,6 +8,14 @@ export interface TableInfo {
   schema: string;
 }
 
+export interface DatabaseFileItem {
+  alias: string;
+  name: string;
+  isMain: boolean;
+  size?: number;
+  tables: TableInfo[];
+}
+
 export type ViewMode = 'BROWSE' | 'SQL' | 'AI' | 'EXAMPLES';
 
 export interface SqlJsStatement {
