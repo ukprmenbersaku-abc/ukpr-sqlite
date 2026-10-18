@@ -33,6 +33,24 @@ async function initSqlJs() {
   }
 }
 
+function getDbTableTarget(tableName: string) {
+  const parts = tableName.split('.');
+  if (parts.length > 1) {
+    const dbAlias = parts[0];
+    const realTableName = parts.slice(1).join('.');
+    return {
+      sqlTable: `"${dbAlias}"."${realTableName}"`,
+      dbAlias,
+      realTableName
+    };
+  }
+  return {
+    sqlTable: `"${tableName}"`,
+    dbAlias: 'main',
+    realTableName: tableName
+  };
+}
+
 ctx.onmessage = async (e: MessageEvent) => {
   const { id, action, payload } = e.data;
 
@@ -71,8 +89,40 @@ ctx.onmessage = async (e: MessageEvent) => {
       }
       case 'export': {
         if (!db) throw new Error("Database not initialized");
-        const data = db.export();
-        ctx.postMessage({ id, success: true, result: data.buffer }, [data.buffer]);
+        const targetAlias = payload?.alias;
+        if (!targetAlias || targetAlias === 'main') {
+          const data = db.export();
+          ctx.postMessage({ id, success: true, result: data.buffer }, [data.buffer]);
+        } else {
+          // Export an attached database
+          const tempExportPath = `/export_${targetAlias}_${Date.now()}.db`;
+          let exportedBuffer: ArrayBuffer | null = null;
+          try {
+            // SQLite 3.27+ supports VACUUM [schema] INTO 'filename'
+            db.run(`VACUUM "${targetAlias}" INTO '${tempExportPath}'`);
+            if (SQL.FS && SQL.FS.analyzePath(tempExportPath).exists) {
+              const fileBytes = SQL.FS.readFile(tempExportPath);
+              exportedBuffer = fileBytes.buffer;
+              try { SQL.FS.unlink(tempExportPath); } catch (e) {}
+            }
+          } catch (vacuumErr) {
+            console.warn(`VACUUM INTO failed for ${targetAlias}, fallback to virtual FS file:`, vacuumErr);
+          }
+
+          if (!exportedBuffer) {
+            const defaultFileName = `/db_${targetAlias}.db`;
+            if (SQL.FS && SQL.FS.analyzePath(defaultFileName).exists) {
+              const fileBytes = SQL.FS.readFile(defaultFileName);
+              exportedBuffer = fileBytes.buffer;
+            }
+          }
+
+          if (!exportedBuffer) {
+            throw new Error(`Failed to export attached database '${targetAlias}'`);
+          }
+
+          ctx.postMessage({ id, success: true, result: exportedBuffer }, [exportedBuffer]);
+        }
         break;
       }
       case 'attach': {
@@ -96,10 +146,36 @@ ctx.onmessage = async (e: MessageEvent) => {
             throw new Error("Virtual File System is inaccessible in SQL.js.");
           }
 
-          db.run(`ATTACH DATABASE '${fileName}' AS ${aliasName}`);
+          db.run(`ATTACH DATABASE '${fileName}' AS "${aliasName}"`);
           ctx.postMessage({ id, success: true, result: aliasName });
         } catch (err: any) {
           throw new Error(`Failed to attach ${name}: ${err.message}`);
+        }
+        break;
+      }
+      case 'attach_empty': {
+        await initSqlJs();
+        if (!db) {
+          db = new SQL.Database();
+        }
+        const rawName = payload.name || 'scratch';
+        const aliasName = rawName.replace(/\.(sqlite3|sqlite|db)$/i, '').replace(/[^a-zA-Z0-9_]/g, '_');
+        const fileName = `/db_${aliasName}.db`;
+
+        try {
+          // Create empty database bytes via a temporary SQL.Database
+          const tempDb = new SQL.Database();
+          const emptyBytes = tempDb.export();
+          tempDb.close();
+
+          if (SQL.FS) {
+            try { SQL.FS.unlink(fileName); } catch (e) {}
+            SQL.FS.writeFile(fileName, emptyBytes);
+          }
+          db.run(`ATTACH DATABASE '${fileName}' AS "${aliasName}"`);
+          ctx.postMessage({ id, success: true, result: aliasName });
+        } catch (err: any) {
+          throw new Error(`Failed to create and attach empty database ${aliasName}: ${err.message}`);
         }
         break;
       }
@@ -117,6 +193,67 @@ ctx.onmessage = async (e: MessageEvent) => {
         } catch (err: any) {
           throw new Error(`Failed to detach ${alias}: ${err.message}`);
         }
+        break;
+      }
+      case 'copy_table': {
+        if (!db) throw new Error("Database not initialized");
+        const { sourceTable, targetDb, newTableName } = payload;
+        const sourceTarget = getDbTableTarget(sourceTable);
+        const safeTargetDb = targetDb === 'main' ? 'main' : `"${targetDb}"`;
+        const safeNewTable = `"${newTableName || sourceTarget.realTableName}"`;
+        
+        // Execute CREATE TABLE target.table AS SELECT * FROM source.table
+        const sql = `CREATE TABLE ${safeTargetDb}.${safeNewTable} AS SELECT * FROM ${sourceTarget.sqlTable};`;
+        db.run(sql);
+        ctx.postMessage({ id, success: true });
+        break;
+      }
+      case 'get_database_stats': {
+        if (!db) {
+          ctx.postMessage({ id, success: true, result: [] });
+          break;
+        }
+        const stats: any[] = [];
+        try {
+          const dbsResult = db.exec("PRAGMA database_list;");
+          if (dbsResult && dbsResult.length > 0) {
+            for (const row of dbsResult[0].values) {
+              const dbName = row[1] as string;
+              if (dbName === 'temp') continue;
+              
+              // Count tables
+              let tableCount = 0;
+              try {
+                const master = dbName === 'main' ? 'sqlite_master' : `"${dbName}".sqlite_master`;
+                const tRes = db.exec(`SELECT count(*) FROM ${master} WHERE type='table' AND name NOT LIKE 'sqlite_%';`);
+                if (tRes && tRes[0]?.values[0]) {
+                  tableCount = Number(tRes[0].values[0][0]);
+                }
+              } catch (e) {}
+
+              // Estimate size
+              let sizeBytes = 0;
+              try {
+                const pageCountRes = db.exec(`PRAGMA "${dbName}".page_count;`);
+                const pageSizeRes = db.exec(`PRAGMA "${dbName}".page_size;`);
+                const pageCount = Number(pageCountRes[0]?.values[0][0] || 0);
+                const pageSize = Number(pageSizeRes[0]?.values[0][0] || 4096);
+                sizeBytes = pageCount * pageSize;
+              } catch (e) {}
+
+              stats.push({
+                alias: dbName,
+                name: dbName === 'main' ? 'main' : `${dbName}.sqlite`,
+                isMain: dbName === 'main',
+                tableCount,
+                sizeBytes
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to get database stats:", e);
+        }
+        ctx.postMessage({ id, success: true, result: stats });
         break;
       }
       case 'execute': {
@@ -237,7 +374,8 @@ ctx.onmessage = async (e: MessageEvent) => {
       case 'update_cell': {
         if (!db) throw new Error("Database not initialized");
         const { tableName, rowId, column, value } = payload;
-        const stmt = db.prepare(`UPDATE "${tableName}" SET "${column}" = ? WHERE rowid = ?`);
+        const target = getDbTableTarget(tableName);
+        const stmt = db.prepare(`UPDATE ${target.sqlTable} SET "${column}" = ? WHERE rowid = ?`);
         stmt.run([value, rowId]);
         stmt.free();
         ctx.postMessage({ id, success: true });
@@ -246,7 +384,8 @@ ctx.onmessage = async (e: MessageEvent) => {
       case 'delete_row': {
         if (!db) throw new Error("Database not initialized");
         const { tableName, rowId } = payload;
-        const stmt = db.prepare(`DELETE FROM "${tableName}" WHERE rowid = ?`);
+        const target = getDbTableTarget(tableName);
+        const stmt = db.prepare(`DELETE FROM ${target.sqlTable} WHERE rowid = ?`);
         stmt.run([rowId]);
         stmt.free();
         ctx.postMessage({ id, success: true });
@@ -255,12 +394,13 @@ ctx.onmessage = async (e: MessageEvent) => {
       case 'insert_row': {
         if (!db) throw new Error("Database not initialized");
         const { tableName, rowData } = payload;
+        const target = getDbTableTarget(tableName);
         const columns = Object.keys(rowData);
         const values = Object.values(rowData);
         const placeholders = values.map(() => '?').join(',');
         const quotedColumns = columns.map(c => `"${c}"`).join(',');
 
-        const sql = `INSERT INTO "${tableName}" (${quotedColumns}) VALUES (${placeholders})`;
+        const sql = `INSERT INTO ${target.sqlTable} (${quotedColumns}) VALUES (${placeholders})`;
         const stmt = db.prepare(sql);
         stmt.run(values);
         stmt.free();
@@ -270,7 +410,8 @@ ctx.onmessage = async (e: MessageEvent) => {
       case 'drop_table': {
         if (!db) throw new Error("Database not initialized");
         const { tableName } = payload;
-        db.run(`DROP TABLE "${tableName}"`);
+        const target = getDbTableTarget(tableName);
+        db.run(`DROP TABLE ${target.sqlTable}`);
         ctx.postMessage({ id, success: true });
         break;
       }

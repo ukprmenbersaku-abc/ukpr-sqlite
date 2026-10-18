@@ -1,15 +1,16 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FilePlus, ChevronDown, ChevronUp, Shield, Zap, Globe, Folders, HelpCircle, FileCheck2, RefreshCw, Scale, ExternalLink } from 'lucide-react';
+import { Upload, FilePlus, ChevronDown, ChevronUp, Shield, Zap, Globe, Folders, HelpCircle, FileCheck2, RefreshCw, Scale, ExternalLink, Layers, Sparkles } from 'lucide-react';
 import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface FileUploadProps {
   onFileLoaded: (file: File) => void;
   onCreateNew: () => void;
   onFolderLoaded: (files: File[]) => void;
+  onLoadSampleMultiDb?: () => void;
   onOpenLicense?: () => void;
 }
 
-export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNew, onFolderLoaded, onOpenLicense }) => {
+export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNew, onFolderLoaded, onLoadSampleMultiDb, onOpenLicense }) => {
   const { lang, t, currentHostname } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const directoryInputRef = useRef<HTMLInputElement>(null);
@@ -165,12 +166,65 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
           </div>
         ) : (
           <>
-            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white tracking-tight">
+            <h1 className="text-3xl md:text-4xl font-extrabold mb-2 text-white tracking-tight bg-gradient-to-r from-white via-indigo-100 to-indigo-300 bg-clip-text text-transparent">
               {t.uploadTitle}
-            </h2>
-            <p className="text-slate-400 mb-8 max-w-xl mx-auto text-sm md:text-base leading-relaxed">
+            </h1>
+            <p className="text-indigo-400 font-medium text-xs md:text-sm mb-3">
+              {lang === 'ja'
+                ? 'ブラウザで動く高速SQLiteエディタ・ビューア / オンライン SQLite Studio'
+                : 'Online SQLite Studio & In-Browser Database Editor (WASM)'}
+            </p>
+            <p className="text-slate-400 mb-5 max-w-xl mx-auto text-xs md:text-sm leading-relaxed">
               {t.uploadSubtitle}
             </p>
+
+            {/* Keyword intent tags (SEO & user clarity) */}
+            <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-2xl mb-6 text-[10px] sm:text-xs">
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/60 font-mono text-slate-300">
+                sqlite on web
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/60 font-mono text-slate-300">
+                sqlite studio
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/60 font-mono text-slate-300">
+                sqlite web editor
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/60 font-mono text-slate-300">
+                sqlite online
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-800/80 border border-slate-700/60 font-mono text-slate-300">
+                multi-database (ATTACH)
+              </span>
+            </div>
+
+            {/* Instant Demo Banner */}
+            {onLoadSampleMultiDb && (
+              <div className="w-full max-w-3xl mb-6 p-4 rounded-2xl bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-slate-900 border border-indigo-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-left shadow-xl hover:border-indigo-400/60 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
+                    <Layers size={22} />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-white flex items-center gap-2">
+                      <span>{t.trySampleMultiDb}</span>
+                      <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        {lang === 'ja' ? '即時体験' : 'Instant Demo'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      {t.trySampleMultiDbSub}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={onLoadSampleMultiDb}
+                  className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-600/30 transition-all shrink-0 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles size={14} />
+                  <span>{lang === 'ja' ? 'サンプルDBを開く' : 'Open Sample DBs'}</span>
+                </button>
+              </div>
+            )}
 
             {/* Drag & Drop Hint Overlay banner */}
             <div className="mb-6 px-4 py-2 border border-slate-700 bg-slate-800/40 rounded-full text-xs text-slate-300 flex items-center gap-2 max-w-md pointer-events-none">
@@ -368,6 +422,52 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileLoaded, onCreateNe
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* SEO FAQ Section */}
+            <div className="w-full max-w-lg mt-4 text-left">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center gap-1.5 px-1">
+                <HelpCircle size={14} className="text-indigo-400" />
+                <span>{t.faqTitle}</span>
+              </h3>
+              <div className="space-y-1.5">
+                <details className="group rounded-xl bg-slate-800/30 border border-slate-700/40 p-3 text-xs text-slate-300 transition-colors">
+                  <summary className="font-semibold text-slate-200 cursor-pointer list-none flex items-center justify-between gap-2">
+                    <span>{t.faq1Q}</span>
+                    <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform shrink-0" />
+                  </summary>
+                  <p className="mt-2 text-slate-400 leading-relaxed text-[11px]">
+                    {t.faq1A}
+                  </p>
+                </details>
+                <details className="group rounded-xl bg-slate-800/30 border border-slate-700/40 p-3 text-xs text-slate-300 transition-colors">
+                  <summary className="font-semibold text-slate-200 cursor-pointer list-none flex items-center justify-between gap-2">
+                    <span>{t.faq2Q}</span>
+                    <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform shrink-0" />
+                  </summary>
+                  <p className="mt-2 text-slate-400 leading-relaxed text-[11px]">
+                    {t.faq2A}
+                  </p>
+                </details>
+                <details className="group rounded-xl bg-slate-800/30 border border-slate-700/40 p-3 text-xs text-slate-300 transition-colors">
+                  <summary className="font-semibold text-slate-200 cursor-pointer list-none flex items-center justify-between gap-2">
+                    <span>{t.faq3Q}</span>
+                    <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform shrink-0" />
+                  </summary>
+                  <p className="mt-2 text-slate-400 leading-relaxed text-[11px]">
+                    {t.faq3A}
+                  </p>
+                </details>
+                <details className="group rounded-xl bg-slate-800/30 border border-slate-700/40 p-3 text-xs text-slate-300 transition-colors">
+                  <summary className="font-semibold text-slate-200 cursor-pointer list-none flex items-center justify-between gap-2">
+                    <span>{t.faq4Q}</span>
+                    <ChevronDown size={14} className="text-slate-400 group-open:rotate-180 transition-transform shrink-0" />
+                  </summary>
+                  <p className="mt-2 text-slate-400 leading-relaxed text-[11px]">
+                    {t.faq4A}
+                  </p>
+                </details>
+              </div>
             </div>
 
             {/* Home Screen Footer: Licenses & Multi-domain links */}

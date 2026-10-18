@@ -26,9 +26,13 @@ import {
   Sun,
   Moon,
   FolderTree,
-  ChevronUp
+  ChevronUp,
+  Copy,
+  ArrowUpCircle,
+  FilePlus2
 } from 'lucide-react';
 import { useLanguage } from '../utils/LanguageContext.tsx';
+import { DatabaseStats } from '../types.ts';
 
 export interface AttachedDbInfo {
   name: string;
@@ -57,6 +61,11 @@ interface SidebarProps {
   onDetachDatabase?: (alias: string) => void;
   onRefreshTables?: () => void;
   onRunQuickSql?: (sql: string) => void;
+  onExportDatabase?: (alias?: string) => void;
+  onMakePrimary?: (alias: string) => void;
+  onCreateEmptyAttachedDb?: () => void;
+  onOpenCopyTableModal?: (tableName: string) => void;
+  databaseStats?: DatabaseStats[];
   theme?: 'dark' | 'light';
   onToggleTheme?: () => void;
 }
@@ -83,6 +92,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDetachDatabase,
   onRefreshTables,
   onRunQuickSql,
+  onExportDatabase,
+  onMakePrimary,
+  onCreateEmptyAttachedDb,
+  onOpenCopyTableModal,
+  databaseStats = [],
   theme = 'dark',
   onToggleTheme
 }) => {
@@ -234,6 +248,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     return list;
   }, [activeTable, tables, groupedDatabases]);
+
+  const formatBytes = (bytes?: number) => {
+    if (!bytes || bytes <= 0) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getDbSize = (alias: string) => {
+    const stat = databaseStats.find(s => s.alias === alias);
+    return stat && stat.sizeBytes > 0 ? formatBytes(stat.sizeBytes) : '';
+  };
 
   return (
     <>
@@ -574,13 +600,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                         {/* Database Actions on Hover */}
                         <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
+                          {getDbSize('main') && (
+                            <span className="text-[9px] px-1 rounded bg-slate-800 text-slate-400 border border-slate-700/50">
+                              {getDbSize('main')}
+                            </span>
+                          )}
                           <span className="text-[10px] text-slate-500">
                             {filteredMainTables.length}
                           </span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onDownloadFile();
+                              if (onExportDatabase) {
+                                onExportDatabase('main');
+                              } else {
+                                onDownloadFile();
+                              }
                             }}
                             title={t.downloadFile}
                             className="p-1 text-slate-400 hover:text-purple-300 hover:bg-slate-700/60 rounded"
@@ -609,16 +644,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   <TableIcon size={13} className={isSelected ? 'text-indigo-400 shrink-0' : 'text-slate-500 shrink-0'} />
                                   <span className="truncate">{table.name}</span>
                                 </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDeleteTable(table.name);
-                                  }}
-                                  title={t.deleteTable}
-                                  className="p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
+                                <div className="flex items-center gap-0.5">
+                                  {onOpenCopyTableModal && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onOpenCopyTableModal(table.name);
+                                      }}
+                                      title={t.copyTable}
+                                      className="p-1 text-slate-500 hover:text-indigo-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                      <Copy size={12} />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteTable(table.name);
+                                    }}
+                                    title={t.deleteTable}
+                                    className="p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
                               </div>
                             );
                           })}
@@ -659,9 +708,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                             {/* Actions on Attached DB */}
                             <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
+                              {getDbSize(attDb.alias) && (
+                                <span className="text-[9px] px-1 rounded bg-slate-800 text-slate-400 border border-slate-700/50">
+                                  {getDbSize(attDb.alias)}
+                                </span>
+                              )}
                               <span className="text-[10px] text-slate-500">
                                 {attDb.filteredTables.length}
                               </span>
+                              {onExportDatabase && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onExportDatabase(attDb.alias);
+                                  }}
+                                  title={`${t.exportThisDb} (${attDb.alias})`}
+                                  className="p-1 text-slate-400 hover:text-purple-300 hover:bg-slate-700/60 rounded"
+                                >
+                                  <Download size={12} />
+                                </button>
+                              )}
+                              {onMakePrimary && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onMakePrimary(attDb.alias);
+                                  }}
+                                  title={`${t.makePrimary} (${attDb.alias})`}
+                                  className="p-1 text-slate-400 hover:text-amber-300 hover:bg-slate-700/60 rounded"
+                                >
+                                  <ArrowUpCircle size={12} />
+                                </button>
+                              )}
                               {onDetachDatabase && (
                                 <button
                                   onClick={(e) => {
@@ -701,16 +779,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                       <TableIcon size={13} className={isSelected ? 'text-purple-400 shrink-0' : 'text-slate-500 shrink-0'} />
                                       <span className="truncate">{shortName}</span>
                                     </div>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        onDeleteTable(table.name);
-                                      }}
-                                      title={t.deleteTable}
-                                      className="p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
+                                    <div className="flex items-center gap-0.5">
+                                      {onOpenCopyTableModal && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            onOpenCopyTableModal(table.name);
+                                          }}
+                                          title={t.copyTable}
+                                          className="p-1 text-slate-500 hover:text-indigo-300 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                        >
+                                          <Copy size={12} />
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          onDeleteTable(table.name);
+                                        }}
+                                        title={t.deleteTable}
+                                        className="p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -726,8 +818,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     })}
 
                     {/* Button to attach another database directly */}
-                    {onAttachFile && (
-                      <div className="px-3 pt-2">
+                    <div className="px-3 pt-2 flex flex-col gap-1.5">
+                      {onAttachFile && (
                         <button
                           onClick={() => attachFileInputRef.current?.click()}
                           className="w-full flex items-center justify-center gap-1.5 px-2 py-1 text-xs font-medium text-slate-400 hover:text-indigo-300 hover:bg-slate-800/60 rounded border border-dashed border-slate-700/60 transition-colors"
@@ -735,8 +827,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <Plus size={13} />
                           <span>{t.addDatabase}</span>
                         </button>
-                      </div>
-                    )}
+                      )}
+                      {onCreateEmptyAttachedDb && (
+                        <button
+                          onClick={onCreateEmptyAttachedDb}
+                          className="w-full flex items-center justify-center gap-1.5 px-2 py-1 text-[11px] font-medium text-slate-400 hover:text-emerald-300 hover:bg-slate-800/60 rounded border border-dashed border-slate-700/40 transition-colors"
+                        >
+                          <FilePlus2 size={12} className="text-emerald-400" />
+                          <span>{t.newEmptyAttachedDb}</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

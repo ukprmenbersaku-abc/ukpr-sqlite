@@ -90,14 +90,112 @@ export const createNewDatabase = async (): Promise<void> => {
   scheduleSyncBackup();
 };
 
-export const exportDatabase = async (): Promise<Uint8Array | null> => {
+export const exportDatabase = async (alias?: string): Promise<Uint8Array | null> => {
   try {
-    const buffer = await callWorker<ArrayBuffer>('export');
-    currentDbBackup = buffer;
+    const buffer = await callWorker<ArrayBuffer>('export', { alias });
+    if (!alias || alias === 'main') {
+      currentDbBackup = buffer;
+    }
     return new Uint8Array(buffer);
   } catch (e) {
+    console.error("Export database error:", e);
     return null;
   }
+};
+
+export const createAttachedEmptyDatabase = async (name: string): Promise<string> => {
+  const alias = await callWorker<string>('attach_empty', { name });
+  scheduleSyncBackup();
+  return alias;
+};
+
+export const copyTableAcrossDatabases = async (sourceTable: string, targetDb: string, newTableName?: string): Promise<void> => {
+  await callWorker<void>('copy_table', { sourceTable, targetDb, newTableName });
+  scheduleSyncBackup();
+};
+
+export const getDatabaseStats = async (): Promise<import('../types.ts').DatabaseStats[]> => {
+  return callWorker<import('../types.ts').DatabaseStats[]>('get_database_stats');
+};
+
+export const loadSampleMultiDatabase = async (): Promise<void> => {
+  // 1. Create primary store database
+  await createNewDatabase();
+  
+  // Seed store database
+  await executeQuery(`
+    CREATE TABLE "products" (
+      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "name" TEXT NOT NULL,
+      "category" TEXT NOT NULL,
+      "price" REAL NOT NULL,
+      "stock" INTEGER NOT NULL
+    );
+    INSERT INTO "products" ("name", "category", "price", "stock") VALUES
+      ('Mechanical Keyboard', 'Electronics', 129.99, 45),
+      ('Ergonomic Mouse', 'Electronics', 69.50, 80),
+      ('Noise-Canceling Headphones', 'Audio', 249.00, 25),
+      ('USB-C 4K Monitor', 'Displays', 399.00, 15),
+      ('Desk Mat Extended', 'Accessories', 24.99, 120);
+
+    CREATE TABLE "customers" (
+      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "name" TEXT NOT NULL,
+      "country" TEXT NOT NULL,
+      "tier" TEXT NOT NULL
+    );
+    INSERT INTO "customers" ("name", "country", "tier") VALUES
+      ('Alice Johnson', 'United States', 'Gold'),
+      ('Kenji Sato', 'Japan', 'Platinum'),
+      ('Sophie Martin', 'France', 'Silver'),
+      ('Marco Rossi', 'Italy', 'Bronze'),
+      ('Liam Smith', 'United Kingdom', 'Gold');
+
+    CREATE TABLE "orders" (
+      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "customer_id" INTEGER,
+      "product_id" INTEGER,
+      "quantity" INTEGER NOT NULL,
+      "order_date" TEXT NOT NULL
+    );
+    INSERT INTO "orders" ("customer_id", "product_id", "quantity", "order_date") VALUES
+      (1, 1, 1, '2026-03-01'),
+      (2, 3, 1, '2026-03-02'),
+      (2, 4, 2, '2026-03-05'),
+      (3, 2, 1, '2026-03-06'),
+      (4, 5, 3, '2026-03-07'),
+      (5, 1, 2, '2026-03-08');
+  `);
+
+  // 2. Attach secondary analytics database
+  const analyticsAlias = await createAttachedEmptyDatabase('analytics');
+  await executeQuery(`
+    CREATE TABLE "${analyticsAlias}"."user_events" (
+      "event_id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "customer_id" INTEGER,
+      "action" TEXT NOT NULL,
+      "timestamp" TEXT NOT NULL,
+      "device" TEXT NOT NULL
+    );
+    INSERT INTO "${analyticsAlias}"."user_events" ("customer_id", "action", "timestamp", "device") VALUES
+      (1, 'view_product', '2026-03-01 09:12:00', 'Desktop'),
+      (1, 'add_to_cart', '2026-03-01 09:14:22', 'Desktop'),
+      (2, 'view_product', '2026-03-02 14:05:11', 'Mobile'),
+      (2, 'checkout', '2026-03-02 14:08:45', 'Mobile'),
+      (3, 'view_product', '2026-03-06 18:22:10', 'Tablet'),
+      (5, 'checkout', '2026-03-08 11:45:00', 'Desktop');
+
+    CREATE TABLE "${analyticsAlias}"."campaigns" (
+      "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+      "campaign_name" TEXT NOT NULL,
+      "source" TEXT NOT NULL,
+      "budget" REAL NOT NULL
+    );
+    INSERT INTO "${analyticsAlias}"."campaigns" ("campaign_name", "source", "budget") VALUES
+      ('Spring Tech Sale', 'Google Search', 1500.00),
+      ('Developer Workspace Kit', 'Direct', 800.00),
+      ('Audio Gear Promo', 'Social', 1200.00);
+  `);
 };
 
 export const closeDatabase = async (): Promise<void> => {

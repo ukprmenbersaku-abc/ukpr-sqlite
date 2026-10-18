@@ -16,6 +16,20 @@ export interface DatabaseFileItem {
   tables: TableInfo[];
 }
 
+export interface DatabaseStats {
+  alias: string;
+  name: string;
+  isMain: boolean;
+  tableCount: number;
+  sizeBytes: number;
+}
+
+export interface CopyTableParams {
+  sourceTable: string;
+  targetDb: string;
+  newTableName: string;
+}
+
 export type ViewMode = 'BROWSE' | 'SQL' | 'AI' | 'EXAMPLES';
 
 export interface SqlJsStatement {

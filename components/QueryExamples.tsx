@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { BookOpen, ChevronDown, Terminal, Sparkles } from 'lucide-react';
+import { BookOpen, ChevronDown, Terminal, Sparkles, Layers } from 'lucide-react';
 import { useLanguage } from '../utils/LanguageContext.tsx';
 
 interface QueryExamplesProps {
@@ -98,6 +98,32 @@ export const QueryExamples: React.FC<QueryExamplesProps> = ({ onSelectSql, activ
           title: t.example10Title,
           desc: t.example10Desc,
           sql: `DELETE FROM ${tableName} WHERE id = 1;`
+        }
+      ]
+    },
+    {
+      category: t.crossDbQueries,
+      icon: <Layers size={18} />,
+      items: [
+        {
+          title: lang === 'ja' ? '複数DB間をJOIN結合して取得' : 'Cross-Database JOIN Query',
+          desc: lang === 'ja' ? 'メインDBのテーブルとマウント先DBのテーブルをキーで結合して同時に取得します。' : 'Join records between primary database and attached database on matching key.',
+          sql: `-- Cross-database JOIN\nSELECT m.*, a.*\nFROM "main"."${activeTable ? activeTable.replace(/^.*?\./, '') : 'table_name'}" m\nJOIN "analytics"."user_events" a ON m.id = a.customer_id\nLIMIT 50;`
+        },
+        {
+          title: lang === 'ja' ? 'テーブルを別DBへ丸ごと複製' : 'Clone Table to Another Database',
+          desc: lang === 'ja' ? '既存テーブルのスキーマとデータをそのまま別のマウントDBへコピーします。' : 'Copy entire table structure and data into another attached database.',
+          sql: `-- Copy table into another database\nCREATE TABLE "analytics"."backup_${activeTable ? activeTable.replace(/^.*?\./, '') : 'table'}" AS\nSELECT * FROM "${activeTable || 'table_name'}";`
+        },
+        {
+          title: lang === 'ja' ? 'マウント中DBの一覧とパス確認' : 'List All Attached Databases',
+          desc: lang === 'ja' ? '現在マウントされている全データベースのシーケンス、エイリアス、仮想ファイル名を確認します。' : 'Inspect all active databases, aliases, and file locations in this session.',
+          sql: `PRAGMA database_list;`
+        },
+        {
+          title: lang === 'ja' ? '別DBのテーブル構造(列情報)を確認' : 'Inspect Attached DB Table Info',
+          desc: lang === 'ja' ? 'マウント中の特定データベースのテーブル列名やデータ型を調査します。' : 'Check column definitions and types of an attached database table.',
+          sql: `PRAGMA "analytics".table_info("user_events");`
         }
       ]
     }

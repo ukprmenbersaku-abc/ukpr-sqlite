@@ -4,11 +4,23 @@
     <!-- hello -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="google" content="notranslate" />
     <meta name="google-site-verification" content="k9_Js63Gy8uN3bu9hBcDrjPnLfXe3sdSp7OnSE-TEEI" />
-    <title>SQLite on Web</title>
-    <meta name="description" content="A lightweight, browser-based SQLite editor and visual explorer. Features direct file loading, interactive tables (add, edit, delete), an autocomplete SQL console, and Gemini AI. Fully supports Japanese language interface / 日本語表示および日本語での操作にも対応しています。" />
-    
+    <title>SQLite on Web – Online SQLite Studio &amp; Web Database Editor</title>
+    <meta name="description" content="Fast, private online SQLite Studio &amp; web database editor. Open, edit, query, and join multiple .sqlite &amp; .db files directly in your browser with zero server uploads." />
+    <meta name="keywords" content="sqlite on web, sqlite studio, sqlite web, sqlite editor web, sqlite online, sqlite-web, sqlite browser online, sqlite online editor, web sqlite, sqlite viewer online, db file online, sqlite3 online, sqlite online database, read sqlite online, sqlite free online, SQLite Webエディタ, SQLite オンライン, SQLite スタジオ" />
+
+    <!-- OpenGraph Social Cards -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="SQLite on Web – Online SQLite Studio &amp; Web Database Editor" />
+    <meta property="og:description" content="Fast, private online SQLite Studio &amp; web database editor. Open, edit, query, and join multiple .sqlite &amp; .db files directly in your browser with zero server uploads." />
+    <meta property="og:site_name" content="SQLite on Web" />
+    <meta property="og:image" content="./favicon.svg" />
+
+    <!-- Twitter / X Cards -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="SQLite on Web – Online SQLite Studio &amp; Web Database Editor" />
+    <meta name="twitter:description" content="Fast, private online SQLite Studio &amp; web database editor. Open, edit, query, and join multiple .sqlite &amp; .db files in your browser with zero server uploads." />
+
     <!-- Multi-regional & Language Alternate Links (SEO) -->
     <link rel="alternate" hreflang="ja" href="https://sqlite-ja.y-s.dev" />
     <link rel="alternate" hreflang="en" href="https://sqlite.y-s.dev" />
@@ -21,8 +33,42 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&family=Noto+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="./index.css">
+
+    <!-- Schema.org Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "SQLite on Web",
+      "alternateName": [
+        "SQLite Studio Online",
+        "SQLite Web",
+        "SQLite Web Editor",
+        "SQLite Online Browser",
+        "SQLite Webエディタ"
+      ],
+      "url": "https://sqlite.y-s.dev",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "All",
+      "browserRequirements": "Requires WebAssembly compatible browser",
+      "description": "Fast, private browser-based SQLite Studio & database editor. Supports multi-database workspaces, ATTACH DATABASE, SQL console with autocomplete, visual table editing, and export.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Zero server upload - 100% private in-browser WebAssembly",
+        "Multi-database workspace (ATTACH DATABASE, folder loading, cross-db joins)",
+        "Interactive table grid with row insert, edit, and delete",
+        "Full SQL editor with autocomplete and instant query execution",
+        "Export and download .sqlite, .db, .sqlite3 files",
+        "Visual table relationship explorer and Gemini AI assistant"
+      ]
+    }
+    </script>
   </head>
-  <body class="bg-slate-900 text-slate-100 h-dvh w-screen overflow-hidden notranslate font-sans">
+  <body class="bg-slate-900 text-slate-100 h-dvh w-screen overflow-hidden font-sans">
     <div id="root" class="h-full w-full"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

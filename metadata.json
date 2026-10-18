@@ -1,6 +1,6 @@
 {
   "name": "SQLite on Web",
-  "description": "A lightweight, browser-based SQLite editor and visual explorer. Features direct SQLite file loading, interactive data grids (add, edit, delete rows), virtualized table rendering for large datasets, autocomplete SQL console, and a Gemini AI assistant for natural language querying and error repair. Fully supports Japanese language interface / 日本語表示および日本語でのSQL生成・操作にも完全対応しています。",
+  "description": "Fast, in-browser SQLite Studio and database editor. Features multi-database workspaces (ATTACH DATABASE, folder batch loading, cross-database joins and table copy), individual database exports, interactive data grids (insert, edit, delete rows), SQL console with autocomplete, and a Gemini AI assistant. Fully supports Japanese & English interfaces with 100% private client-side execution.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

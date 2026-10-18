@@ -25,10 +25,14 @@ import {
   attachDatabase,
   detachDatabase,
   cancelCurrentQuery,
-  initSqlJs
+  initSqlJs,
+  createAttachedEmptyDatabase,
+  copyTableAcrossDatabases,
+  getDatabaseStats,
+  loadSampleMultiDatabase
 } from './services/sqliteService.ts';
-import { TableInfo, QueryResult, ViewMode } from './types.ts';
-import { Menu, Sun, Moon, Scale, CheckCircle2, AlertTriangle, Info, XCircle, X } from 'lucide-react';
+import { TableInfo, QueryResult, ViewMode, DatabaseStats } from './types.ts';
+import { Menu, Sun, Moon, Scale, CheckCircle2, AlertTriangle, Info, XCircle, X, Copy } from 'lucide-react';
 import { useLanguage } from './utils/LanguageContext.tsx';
 
 export interface ToastItem {
@@ -66,6 +70,20 @@ function App() {
 
   // Multi-database management state
   const [attachedDatabases, setAttachedDatabases] = useState<{ name: string; alias: string }[]>([]);
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStats[]>([]);
+
+  // Copy table across databases modal state
+  const [copyTableConfig, setCopyTableConfig] = useState<{
+    isOpen: boolean;
+    sourceTable: string;
+    targetDb: string;
+    newTableName: string;
+  }>({
+    isOpen: false,
+    sourceTable: '',
+    targetDb: '',
+    newTableName: ''
+  });
 
   // Toast Notifications (smooth, non-intrusive in-app notifications)
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -211,6 +229,34 @@ function App() {
     };
   }, [isFileLoaded, fileName]);
 
+  // Global drag-and-drop handler for attaching databases anytime while workspace is active
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      if (isFileLoaded) {
+        e.preventDefault();
+      }
+    };
+
+    const handleWindowDrop = async (e: DragEvent) => {
+      if (!isFileLoaded) return;
+      e.preventDefault();
+      const files = Array.from(e.dataTransfer?.files || []);
+      const dbFiles = files.filter(f => f.name.match(/\.(sqlite|db|sqlite3)$/i));
+      if (dbFiles.length > 0) {
+        for (const file of dbFiles) {
+          await onAttachFile(file);
+        }
+      }
+    };
+
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('drop', handleWindowDrop);
+    return () => {
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('drop', handleWindowDrop);
+    };
+  }, [isFileLoaded, attachedDatabases]);
+
   // Modal State
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
@@ -332,23 +378,171 @@ function App() {
     handleExecuteSql(sql);
   };
 
-  const onDownloadFile = async () => {
+  const onExportDatabase = async (alias?: string) => {
     try {
-      const data = await exportDatabase();
+      const isMain = !alias || alias === 'main';
+      const data = await exportDatabase(alias);
       if (!data) return;
       const blob = new Blob([data as any], { type: 'application/x-sqlite3' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileName || 'database.sqlite';
+      const targetName = isMain 
+        ? (fileName || 'database.sqlite')
+        : (attachedDatabases.find(d => d.alias === alias)?.name || `${alias}.sqlite`);
+      a.download = targetName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showToast(lang === 'ja' ? 'ダウンロードを開始しました' : 'Download started', 'success');
+      showToast(
+        lang === 'ja' ? `${targetName} のダウンロードを開始しました` : `Started download for ${targetName}`,
+        'success'
+      );
     } catch (e) {
       console.error(e);
       showToast(t.saveFileFailed, 'error');
+    }
+  };
+
+  const onDownloadFile = async () => {
+    await onExportDatabase('main');
+  };
+
+  const onMakePrimary = async (targetAlias: string) => {
+    try {
+      const targetDbInfo = attachedDatabases.find(d => d.alias === targetAlias);
+      const targetDbName = targetDbInfo ? targetDbInfo.name : `${targetAlias}.sqlite`;
+      const oldMainName = fileName || 'main.sqlite';
+
+      // 1. Export both databases to buffers
+      const mainData = await exportDatabase('main');
+      const targetData = await exportDatabase(targetAlias);
+
+      if (!mainData || !targetData) {
+        throw new Error("Could not export database state for switching");
+      }
+
+      // 2. Load target data as primary
+      await loadDatabase(targetData.buffer as ArrayBuffer);
+      setFileName(targetDbName);
+
+      // 3. Attach previous main
+      const oldMainAlias = await attachDatabase(oldMainName, mainData.buffer as ArrayBuffer);
+
+      // 4. Update attached databases state
+      const remainingAttached = attachedDatabases.filter(d => d.alias !== targetAlias);
+      setAttachedDatabases([...remainingAttached, { name: oldMainName, alias: oldMainAlias }]);
+
+      // 5. Refresh
+      await refreshTables();
+      showToast(
+        lang === 'ja' 
+          ? `メインDBを「${targetDbName}」に切り替えました！元のメインDBは「${oldMainAlias}」としてマウントされています。`
+          : `Switched main database to "${targetDbName}"! Previous main is now attached as "${oldMainAlias}".`,
+        'success'
+      );
+    } catch (e: any) {
+      console.error("Make primary error:", e);
+      showToast(
+        lang === 'ja' ? `メインDB切り替えエラー: ${e.message}` : `Failed to switch main DB: ${e.message}`,
+        'error'
+      );
+    }
+  };
+
+  const onCreateEmptyAttachedDb = async () => {
+    const defaultName = `db_${attachedDatabases.length + 2}`;
+    const name = prompt(t.newEmptyAttachedDbPrompt, defaultName);
+    if (!name || !name.trim()) return;
+    try {
+      const cleanName = name.trim();
+      const alias = await createAttachedEmptyDatabase(cleanName);
+      setAttachedDatabases(prev => [...prev.filter(d => d.alias !== alias), { name: `${cleanName}.sqlite`, alias }]);
+      await refreshTables();
+      showToast(
+        lang === 'ja'
+          ? `空のデータベース「${alias}」をマウントしました！`
+          : `Created and attached empty database "${alias}"!`,
+        'success'
+      );
+    } catch (e: any) {
+      console.error("Create attached error:", e);
+      showToast(
+        lang === 'ja' ? `DB作成エラー: ${e.message}` : `Error creating attached DB: ${e.message}`,
+        'error'
+      );
+    }
+  };
+
+  const onLoadSampleMultiDb = async () => {
+    try {
+      setActiveTable(null);
+      setQueryResult(null);
+      setEditorSql('');
+      setError(null);
+      setExecutionTime(null);
+      setAttachedDatabases([]);
+
+      await loadSampleMultiDatabase();
+      setFileName('store_main.sqlite');
+      setAttachedDatabases([{ name: 'analytics.sqlite', alias: 'analytics' }]);
+      await refreshTables();
+      setIsFileLoaded(true);
+      setCurrentView('BROWSE');
+      setIsSidebarOpen(false);
+      showToast(
+        lang === 'ja'
+          ? 'サンプルストアDB (main) と分析DB (analytics) をマウントしました！エクスプローラーからテーブル間JOINやコピーを試せます。'
+          : 'Loaded sample Store DB (main) & Analytics DB (analytics)! Explore cross-database querying in the editor.',
+        'success'
+      );
+    } catch (e: any) {
+      console.error("Load sample error:", e);
+      showToast(
+        lang === 'ja' ? `サンプル読込エラー: ${e.message}` : `Error loading sample: ${e.message}`,
+        'error'
+      );
+    }
+  };
+
+  const handleOpenCopyTableModal = (sourceTable: string) => {
+    const isSourceInAttached = sourceTable.includes('.');
+    let defaultTarget = 'main';
+    if (!isSourceInAttached && attachedDatabases.length > 0) {
+      defaultTarget = attachedDatabases[0].alias;
+    }
+    const pureTableName = sourceTable.replace(/^.*?\./, '');
+
+    setCopyTableConfig({
+      isOpen: true,
+      sourceTable,
+      targetDb: defaultTarget,
+      newTableName: `${pureTableName}_copy`
+    });
+  };
+
+  const performCopyTable = async () => {
+    if (!copyTableConfig.sourceTable || !copyTableConfig.targetDb || !copyTableConfig.newTableName) return;
+    try {
+      await copyTableAcrossDatabases(
+        copyTableConfig.sourceTable,
+        copyTableConfig.targetDb,
+        copyTableConfig.newTableName
+      );
+      await refreshTables();
+      setCopyTableConfig(prev => ({ ...prev, isOpen: false }));
+      showToast(
+        t.copySuccess
+          .replace('{table}', copyTableConfig.sourceTable)
+          .replace('{target}', `${copyTableConfig.targetDb}.${copyTableConfig.newTableName}`),
+        'success'
+      );
+    } catch (e: any) {
+      showToast(
+        lang === 'ja' ? `テーブルコピー失敗: ${e.message}` : `Copy table failed: ${e.message}`,
+        'error'
+      );
     }
   };
 
@@ -388,6 +582,12 @@ function App() {
     try {
       const t = await getTables();
       setTables(t);
+
+      // Query database sizes and table statistics
+      try {
+        const stats = await getDatabaseStats();
+        setDatabaseStats(stats);
+      } catch (e) {}
 
       // Warm up columnCache for IntelliSense/suggestions
       const cache: Record<string, string[]> = {};
@@ -610,6 +810,11 @@ function App() {
         onDetachDatabase={handleDetachDatabaseRequest}
         onRefreshTables={refreshTables}
         onRunQuickSql={handleRunQuickSql}
+        onExportDatabase={onExportDatabase}
+        onMakePrimary={onMakePrimary}
+        onCreateEmptyAttachedDb={onCreateEmptyAttachedDb}
+        onOpenCopyTableModal={handleOpenCopyTableModal}
+        databaseStats={databaseStats}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -703,6 +908,7 @@ function App() {
               onFileLoaded={onFileLoaded} 
               onCreateNew={onCreateNew} 
               onFolderLoaded={onFolderLoaded} 
+              onLoadSampleMultiDb={onLoadSampleMultiDb}
               onOpenLicense={() => setIsLicenseOpen(true)}
             />
           ) : (
@@ -794,6 +1000,90 @@ function App() {
         className="hidden" 
         {...({ webkitdirectory: "", directory: "", multiple: true } as any)}
       />
+
+      {/* Copy Table to Another Database Modal */}
+      {copyTableConfig.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-full bg-indigo-900/30 text-indigo-400">
+                  <Copy size={18} />
+                </div>
+                <h3 className="font-bold text-white text-base">{t.copyTableTitle}</h3>
+              </div>
+              <button 
+                onClick={() => setCopyTableConfig(prev => ({ ...prev, isOpen: false }))}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-700 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <p className="text-slate-300 leading-relaxed">
+                {t.copyTableDesc}
+              </p>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">
+                  {lang === 'ja' ? 'コピー元テーブル:' : 'Source Table:'}
+                </label>
+                <div className="p-2 rounded bg-slate-900 border border-slate-700 font-mono text-indigo-300">
+                  {copyTableConfig.sourceTable}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">
+                  {t.selectTargetDb}
+                </label>
+                <select
+                  value={copyTableConfig.targetDb}
+                  onChange={(e) => setCopyTableConfig(prev => ({ ...prev, targetDb: e.target.value }))}
+                  className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="main">{t.mainDatabase} ({fileName || 'main.sqlite'})</option>
+                  {attachedDatabases.map(att => (
+                    <option key={att.alias} value={att.alias}>
+                      {att.name} ({att.alias})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-semibold mb-1">
+                  {t.newTableNameLabel}
+                </label>
+                <input
+                  type="text"
+                  value={copyTableConfig.newTableName}
+                  onChange={(e) => setCopyTableConfig(prev => ({ ...prev, newTableName: e.target.value }))}
+                  placeholder="new_table_name"
+                  className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-900/50 border-t border-slate-700/50 flex justify-end gap-2.5">
+              <button
+                onClick={() => setCopyTableConfig(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+              >
+                {t.cancelText}
+              </button>
+              <button
+                onClick={performCopyTable}
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-900/30 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Copy size={13} />
+                <span>{t.copyTableBtn}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Terms & Open-Source Licenses Modal */}
       <LicenseModal 
