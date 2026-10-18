@@ -99,14 +99,6 @@ export const DataTable: React.FC<DataTableProps> = ({
   const topSpacerHeight = startIndex * rowHeight;
   const bottomSpacerHeight = Math.max(0, (totalItems - endIndex) * rowHeight);
 
-  if (!data || data.columns.length === 0) {
-    return (
-      <div className={`flex items-center justify-center h-full text-slate-500 italic ${className}`}>
-        {lang === 'ja' ? 'データがありません' : 'No data available'}
-      </div>
-    );
-  }
-
   const rafIdRef = useRef<number | null>(null);
 
   // Handle scroll trigger with rAF throttling for 60-120fps buttery-smooth virtual scrolling
@@ -124,6 +116,14 @@ export const DataTable: React.FC<DataTableProps> = ({
       if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
     };
   }, []);
+
+  if (!data || data.columns.length === 0) {
+    return (
+      <div className={`flex items-center justify-center h-full text-slate-500 italic ${className}`}>
+        {lang === 'ja' ? 'データがありません' : 'No data available'}
+      </div>
+    );
+  }
 
   const handleEditClick = (rowId: number, col: string, currentValue: any) => {
     if (!isEditable || !onUpdateCell) return;

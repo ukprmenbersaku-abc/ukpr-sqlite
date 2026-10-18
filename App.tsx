@@ -415,7 +415,7 @@ function App() {
       const targetDbName = targetDbInfo ? targetDbInfo.name : `${targetAlias}.sqlite`;
       const oldMainName = fileName || 'main.sqlite';
 
-      // 1. Export both databases to buffers
+      // 1. Export main and target databases
       const mainData = await exportDatabase('main');
       const targetData = await exportDatabase(targetAlias);
 
@@ -423,18 +423,46 @@ function App() {
         throw new Error("Could not export database state for switching");
       }
 
+      // Also preserve any OTHER attached databases
+      const otherAttached = attachedDatabases.filter(d => d.alias !== targetAlias);
+      const otherBuffers: { name: string; alias: string; buffer: ArrayBuffer }[] = [];
+      for (const other of otherAttached) {
+        const otherData = await exportDatabase(other.alias);
+        if (otherData) {
+          otherBuffers.push({
+            name: other.name,
+            alias: other.alias,
+            buffer: (otherData.buffer as ArrayBuffer).slice(otherData.byteOffset, otherData.byteOffset + otherData.byteLength) as ArrayBuffer
+          });
+        }
+      }
+
+      const targetBuffer = (targetData.buffer as ArrayBuffer).slice(targetData.byteOffset, targetData.byteOffset + targetData.byteLength) as ArrayBuffer;
+      const mainBuffer = (mainData.buffer as ArrayBuffer).slice(mainData.byteOffset, mainData.byteOffset + mainData.byteLength) as ArrayBuffer;
+
       // 2. Load target data as primary
-      await loadDatabase(targetData.buffer as ArrayBuffer);
+      await loadDatabase(targetBuffer);
       setFileName(targetDbName);
 
       // 3. Attach previous main
-      const oldMainAlias = await attachDatabase(oldMainName, mainData.buffer as ArrayBuffer);
+      const oldMainAlias = await attachDatabase(oldMainName, mainBuffer);
 
-      // 4. Update attached databases state
-      const remainingAttached = attachedDatabases.filter(d => d.alias !== targetAlias);
-      setAttachedDatabases([...remainingAttached, { name: oldMainName, alias: oldMainAlias }]);
+      // 4. Re-attach all other preserved databases
+      const reattachedList: { name: string; alias: string }[] = [
+        { name: oldMainName, alias: oldMainAlias }
+      ];
+      for (const other of otherBuffers) {
+        try {
+          const alias = await attachDatabase(other.name, other.buffer);
+          reattachedList.push({ name: other.name, alias });
+        } catch (reErr) {
+          console.warn(`Could not re-attach ${other.name}:`, reErr);
+        }
+      }
 
-      // 5. Refresh
+      setAttachedDatabases(reattachedList);
+
+      // 5. Refresh tables and explorer
       await refreshTables();
       showToast(
         lang === 'ja' 

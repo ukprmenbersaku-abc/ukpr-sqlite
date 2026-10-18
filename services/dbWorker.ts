@@ -92,7 +92,8 @@ ctx.onmessage = async (e: MessageEvent) => {
         const targetAlias = payload?.alias;
         if (!targetAlias || targetAlias === 'main') {
           const data = db.export();
-          ctx.postMessage({ id, success: true, result: data.buffer }, [data.buffer]);
+          const cleanBuffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+          ctx.postMessage({ id, success: true, result: cleanBuffer }, [cleanBuffer]);
         } else {
           // Export an attached database
           const tempExportPath = `/export_${targetAlias}_${Date.now()}.db`;
@@ -102,7 +103,7 @@ ctx.onmessage = async (e: MessageEvent) => {
             db.run(`VACUUM "${targetAlias}" INTO '${tempExportPath}'`);
             if (SQL.FS && SQL.FS.analyzePath(tempExportPath).exists) {
               const fileBytes = SQL.FS.readFile(tempExportPath);
-              exportedBuffer = fileBytes.buffer;
+              exportedBuffer = fileBytes.buffer.slice(fileBytes.byteOffset, fileBytes.byteOffset + fileBytes.byteLength);
               try { SQL.FS.unlink(tempExportPath); } catch (e) {}
             }
           } catch (vacuumErr) {
@@ -113,7 +114,7 @@ ctx.onmessage = async (e: MessageEvent) => {
             const defaultFileName = `/db_${targetAlias}.db`;
             if (SQL.FS && SQL.FS.analyzePath(defaultFileName).exists) {
               const fileBytes = SQL.FS.readFile(defaultFileName);
-              exportedBuffer = fileBytes.buffer;
+              exportedBuffer = fileBytes.buffer.slice(fileBytes.byteOffset, fileBytes.byteOffset + fileBytes.byteLength);
             }
           }
 
